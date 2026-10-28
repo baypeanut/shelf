@@ -1,0 +1,47 @@
+name: macOS
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-tests-and-build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Validate release version
+        run: |
+          python3 scripts/test-release-version.py
+          python3 scripts/check-release-version.py
+      - name: Prepare pinned offline search models
+        run: python3 scripts/prepare-search-models.py
+      - name: Native XCTest suite
+        run: swift test
+        env:
+          SHELF_BEHAVIOR_REPORT: validation/macos/shelves.json
+          SHELF_KEYBOARD_REPORT: validation/macos/keyboard.json
+      - name: Validate localization
+        run: swift scripts/check-strings.swift
+      - name: Build Shelf with offline visual search
+        run: bash scripts/build-community.sh release
+        env:
+          SHELF_BUNDLE_MODELS: 1
+      - name: Verify bundle, signature and actual isolated launch
+        run: |
+          /usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' build/Shelf.app/Contents/Info.plist | /usr/bin/grep -Fx com.baypeanut.Shelf
+          codesign --verify --deep --strict build/Shelf.app
+          python3 scripts/check-release-version.py --app build/Shelf.app
+          python3 scripts/verify-bundle.py build/Shelf.app
+      - name: Preserve synthetic behavior observations
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: shelf-macos-behavior-${{ github.sha }}
+          path: validation/macos/
+          if-no-files-found: warn
+          retention-days: 14

@@ -29,3 +29,7 @@ Shift + S searches shelves. In Library, Command + F searches the current view, w
 ## Move focus in Library
 
 F6 or Control + Tab moves to the next pane. Shift + F6 or Control + Shift + Tab moves back. Shift with arrow keys extends selection, and Command + A selects all in the current browsing context.
+
+## Pick a markup tool
+
+In image markup, V selects annotations, B chooses pen, H marker, R rectangle, O ellipse, A arrow, D line and T text. C enters crop mode. While cropping, Return applies and Escape cancels the crop.

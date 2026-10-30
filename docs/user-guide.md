@@ -33,3 +33,7 @@ Pin an item with P while browsing, or add it to a Library folder or tag. Favorit
 ## Find an item
 
 Use Shift + S to search the shelves, or open Library and use Command + F to search its current view. Check the active type and scope if an expected item is missing. Space previews the selection.
+
+## Set a history window
+
+**Settings → History** provides separate retention choices for images, texts and links. Unsaved copies expire to recoverable Library Trash. Saved items and original files are kept. See [Troubleshooting](troubleshooting.md) for capture and search checks.

@@ -13,3 +13,7 @@ Arrow keys move the selection. Tab and Shift + Tab switch shelves. Command + Lef
 ## Preview and copy
 
 Space previews the selected item. Command + C or Return copies while browsing. Command + Return requests direct paste into the previous app and needs Accessibility permission; ordinary copy does not. In a text preview, Command + Return finishes an active edit.
+
+## Keep and file items
+
+P pins an item, Shift + P opens pin-to-folder, and Option + P opens name-and-pin. F toggles pinned-only browsing. Use these commands outside text fields so the letters are treated as actions.

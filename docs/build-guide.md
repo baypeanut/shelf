@@ -36,3 +36,7 @@ SHELF_BUNDLE_MODELS=1 bash scripts/build-community.sh release
 ```
 
 The model preparation step downloads pinned assets into ignored local storage. Models and their component notices are included only for this optional build. The default build still includes local Vision text recognition.
+
+## Handle model downloads
+
+The model preparer checks pinned weight digests before use. If a download fails verification, inspect the error and the network path before retrying. Keep the pinned values and component notices intact. See [Dependencies](../DEPENDENCIES.md).

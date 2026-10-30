@@ -25,3 +25,7 @@ Enter crop mode with the crop button or C while browsing an image. Adjust the cr
 ## Undo an edit
 
 The markup toolbar provides Undo and Redo. Command + Z undoes a markup change and Command + Shift + Z redoes it. Check the active editor before using undo, since text editing and Library Trash have their own undo actions.
+
+## Keep the original
+
+Image markup and cropping preserve the original image while producing an edited representation. Verify an exported or copied image when its final dimensions matter, especially after applying a crop.

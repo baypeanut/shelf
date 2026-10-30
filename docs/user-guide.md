@@ -13,3 +13,7 @@ In **Settings → Sources**, enable images, text or links individually. All thre
 ## Copy a link
 
 A single web address is routed to Links. A paragraph that contains a link stays as text. Capturing the address and fetching its website title or thumbnail are separate settings.
+
+## Choose link previews
+
+**Fetch link titles and thumbnails** starts disabled. Enabling it contacts the linked website or supported public video service. Read [Privacy](../PRIVACY.md#network-requests) before enabling this for links you consider sensitive.

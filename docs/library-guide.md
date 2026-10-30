@@ -25,3 +25,7 @@ Create a folder with Command + Shift + N. Select records and choose **Add to fol
 ## Add a tag
 
 Select a record and choose **Add tag…**, or use Command + Shift + T in Library. Tags help retrieve related content without relying on the copied text or website title.
+
+## Write a note
+
+Command + N creates a note in Library. Click text in its preview to edit it. Finish editing with Command + Return before using browsing commands; ordinary typing and text-editing shortcuts belong to the editor.

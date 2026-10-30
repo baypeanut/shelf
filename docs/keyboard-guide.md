@@ -17,3 +17,7 @@ Space previews the selected item. Command + C or Return copies while browsing. C
 ## Keep and file items
 
 P pins an item, Shift + P opens pin-to-folder, and Option + P opens name-and-pin. F toggles pinned-only browsing. Use these commands outside text fields so the letters are treated as actions.
+
+## Take down or trash
+
+On a shelf, S takes down an item and Backspace undoes the latest take-down. In Library, S moves the selection to Trash and Backspace or Command + Z undoes the latest recoverable move. Check the current surface before using S.

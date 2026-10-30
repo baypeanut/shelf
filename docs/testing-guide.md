@@ -43,3 +43,7 @@ open "build/Shelf UI Test.app"
 ```
 
 The separate harness uses synthetic fixtures and an isolated bundle identifier. Quit an existing harness before rebuilding it. Generated observations stay under `local/validation/current/`.
+
+## Reuse a QA session
+
+The harness accepts `--qa-session` followed by a UUID to resume an isolated profile across process restarts. Use a fresh UUID for an independent scenario, then reopen the same session to check persistence. Keep the session identifier and fixture data local.

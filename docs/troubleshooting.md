@@ -5,3 +5,7 @@ Start with a small reproduction containing fictional text or images. Record the 
 ## No window appears
 
 Shelf is a menu bar app. Try the default Control + Option + T shortcut and check whether Shelf is running before treating the absence of a document window as a launch failure. Custom shortcuts may differ from the defaults.
+
+## The app does not launch
+
+Verify the bundle using the commands in [Building Shelf](build-guide.md#verify-the-bundle). Confirm that you are opening the current packaged copy. Record the error and build version; keep crash reports local until you have checked them for private paths or content.

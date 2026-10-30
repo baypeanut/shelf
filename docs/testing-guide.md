@@ -66,3 +66,7 @@ python3 scripts/check-secrets.py
 ```
 
 The publication audit rejects private artifact paths and high-confidence secret formats. The pinned secret scanner also checks public Git history and verifies its detector with a positive control.
+
+## Record what was tested
+
+Include source revision, macOS version, architecture, toolchain, commands and observed outcomes. Distinguish native action tests from physical pointer or VoiceOver checks. Store logs and screenshots locally, and record release limits alongside the results in [Validation](macos-validation.md).

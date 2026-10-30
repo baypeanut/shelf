@@ -50,3 +50,11 @@ codesign --verify --deep --strict build/Shelf.app
 ```
 
 These checks cover version, identity, resources, runtime paths, signature integrity and isolated startup. They can be rerun after copying a bundle.
+
+## Open or keep it
+
+```sh
+open build/Shelf.app
+```
+
+To keep the app installed, quit the running copy and move the verified bundle to your Applications folder. Use one installed copy consistently when checking launch-at-login or macOS permissions.

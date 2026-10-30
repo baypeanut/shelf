@@ -29,3 +29,7 @@ Select a record and choose **Add tag…**, or use Command + Shift + T in Library
 ## Write a note
 
 Command + N creates a note in Library. Click text in its preview to edit it. Finish editing with Command + Return before using browsing commands; ordinary typing and text-editing shortcuts belong to the editor.
+
+## Export a copy
+
+Choose **Export copies…** or press Command + Shift + E. Text exports as UTF-8 text and links as web-location files. Exports are separate snapshots: later changes in Shelf do not rewrite an exported copy.

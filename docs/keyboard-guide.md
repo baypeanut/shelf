@@ -33,3 +33,7 @@ F6 or Control + Tab moves to the next pane. Shift + F6 or Control + Shift + Tab 
 ## Pick a markup tool
 
 In image markup, V selects annotations, B chooses pen, H marker, R rectangle, O ellipse, A arrow, D line and T text. C enters crop mode. While cropping, Return applies and Escape cancels the crop.
+
+## Change a binding
+
+Open **Settings → Shortcuts** and record a replacement for the relevant action. Each browsing action also offers **Off** and **Reset to default**. Use **Reset all browsing shortcuts** only when you want to replace the whole browsing configuration.

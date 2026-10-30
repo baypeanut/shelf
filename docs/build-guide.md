@@ -58,3 +58,7 @@ open build/Shelf.app
 ```
 
 To keep the app installed, quit the running copy and move the verified bundle to your Applications folder. Use one installed copy consistently when checking launch-at-login or macOS permissions.
+
+## Change a release version
+
+`release-version.json` holds the version and build number used by packaging. The version checker expects a stable three-part version and a positive integer bundle build. Run its tests and validate the built app after changing either value.

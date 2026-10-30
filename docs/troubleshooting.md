@@ -21,3 +21,7 @@ Check the current screenshot destination and Shelf folder access. For an additio
 ## Search returns nothing
 
 Clear the query, then check the sidebar scope, type filters and pinned-only state. Look in Library Trash if an item was removed or expired. Image-content search requires the optional model build, while text recognition is available in the default build.
+
+## Direct paste fails
+
+Try ordinary copy and paste first. Direct paste needs macOS Accessibility permission and an editable target in the previous app. Open the permission control from Shelf Settings and confirm that permission belongs to the installed copy you are using.

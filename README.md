@@ -30,7 +30,7 @@ bash scripts/build-community.sh release
 open build/Shelf.app
 ```
 
-The app is created at `build/Shelf.app`. Move it to your Applications folder to keep it installed.
+The app is created at `build/Shelf.app`. The builder verifies a separate, isolated startup before finishing. Move the app to your Applications folder to keep it installed.
 
 This produces an ad-hoc signed local build. Developer ID signing, notarization and Mac App Store distribution are not configured. Updates are installed manually.
 

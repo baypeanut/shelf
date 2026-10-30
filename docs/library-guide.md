@@ -33,3 +33,7 @@ Command + N creates a note in Library. Click text in its preview to edit it. Fin
 ## Export a copy
 
 Choose **Export copies…** or press Command + Shift + E. Text exports as UTF-8 text and links as web-location files. Exports are separate snapshots: later changes in Shelf do not rewrite an exported copy.
+
+## Recover a removal
+
+Move a selection to Trash through More or its browsing shortcut. In Library, Command + Z or Backspace can undo the latest recoverable move. To recover an older item, select it in Trash and choose **Restore**. Trash is not secure erasure of exports, original files or backups.

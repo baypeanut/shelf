@@ -17,3 +17,7 @@ A single web address is routed to Links. A paragraph that contains a link stays 
 ## Choose link previews
 
 **Fetch link titles and thumbnails** starts disabled. Enabling it contacts the linked website or supported public video service. Read [Privacy](../PRIVACY.md#network-requests) before enabling this for links you consider sensitive.
+
+## Watch image folders
+
+Shelf observes the current screenshot destination while running, subject to macOS folder access. **Also watch folders** accepts up to three extra folders. Removing a watched folder leaves its files untouched.

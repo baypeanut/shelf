@@ -21,3 +21,7 @@ Use **Save to library** from More, pin the selection, or organize it with a fold
 ## File items together
 
 Create a folder with Command + Shift + N. Select records and choose **Add to folder** from More. On a shelf, Shift + P opens the pin-to-folder picker. A Library folder is an organizational collection, not a Finder destination.
+
+## Add a tag
+
+Select a record and choose **Add tag…**, or use Command + Shift + T in Library. Tags help retrieve related content without relying on the copied text or website title.

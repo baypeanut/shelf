@@ -25,3 +25,7 @@ On a shelf, S takes down an item and Backspace undoes the latest take-down. In L
 ## Search the current surface
 
 Shift + S searches shelves. In Library, Command + F searches the current view, while Command + 0, 1, 2 and 3 select all types, images, texts and links respectively. Command + K opens searchable Actions.
+
+## Move focus in Library
+
+F6 or Control + Tab moves to the next pane. Shift + F6 or Control + Shift + Tab moves back. Shift with arrow keys extends selection, and Command + A selects all in the current browsing context.

@@ -25,3 +25,7 @@ Clear the query, then check the sidebar scope, type filters and pinned-only stat
 ## Direct paste fails
 
 Try ordinary copy and paste first. Direct paste needs macOS Accessibility permission and an editable target in the previous app. Open the permission control from Shelf Settings and confirm that permission belongs to the installed copy you are using.
+
+## A preview stays open
+
+Look for a save-recovery sheet offering retry, discard or keep editing. **Keep editing** deliberately leaves the window open with its draft. The red close control is at the top left; use an explicit recovery choice if a save has failed.

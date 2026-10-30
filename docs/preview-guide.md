@@ -17,3 +17,7 @@ Use **Image markup** or the default M browsing shortcut. The toolbar offers a se
 ## Adjust annotation style
 
 The color control changes annotation color. **Annotation style** provides stroke width, shape fill and text size controls. These controls affect annotation appearance; they do not change the dimensions of the source image.
+
+## Crop an image
+
+Enter crop mode with the crop button or C while browsing an image. Adjust the crop area and use the checkmark or Return to apply it. Escape cancels the active crop, and **Reset crop** restores the crop boundary.

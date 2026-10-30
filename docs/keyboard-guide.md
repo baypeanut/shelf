@@ -5,3 +5,7 @@ These are the default bindings. Settings can override them, and command hints re
 ## Open Shelf globally
 
 Control + Option + T shows or hides the shelves by default. Settings also offers separately recorded global shortcuts for Library, shelf search and copying the latest image. Check whether a shortcut is Off before expecting it to work from another app.
+
+## Move around shelves
+
+Arrow keys move the selection. Tab and Shift + Tab switch shelves. Command + Left or Right moves to the first or last item; Option + Left or Right changes pages. Number keys 1 through 9 select visible quick-selection slots.

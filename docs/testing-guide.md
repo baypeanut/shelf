@@ -25,3 +25,12 @@ swift test --filter PreviewWindowTests
 ```
 
 Start with the failing suite to shorten the feedback cycle, then run the relevant broader tests after a correction. Preserve the synthetic reproduction and the expected user-visible behavior in a regression.
+
+## Use standalone runners
+
+```sh
+bash scripts/test-clipboard.sh
+bash scripts/test-history.sh
+```
+
+These scripts compile standalone runners against the native sources. They are useful for investigating test-runner or toolchain differences. They do not replace verification of the packaged application.

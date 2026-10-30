@@ -25,3 +25,7 @@ Shelf observes the current screenshot destination while running, subject to macO
 ## Enable screenshot handling
 
 **Handle screenshots** uses Inbox mode and asks before changing the screenshot destination. Disable the mode or quit normally to restore the saved setting. If Shelf is interrupted, reopen it so managed settings can be restored.
+
+## Save something useful
+
+Pin an item with P while browsing, or add it to a Library folder or tag. Favorites, folders and tags retain items beyond ordinary history expiry. [The Library guide](library-guide.md) explains the organization controls.

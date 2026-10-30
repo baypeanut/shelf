@@ -13,3 +13,7 @@ Use the grid and list buttons in the toolbar to change presentation. The inspect
 ## Sort the current view
 
 The Sort menu offers newest first, oldest first, title, reverse title, last copied and best match. When checking search results, consider both the query and the selected sort order.
+
+## Keep a record
+
+Use **Save to library** from More, pin the selection, or organize it with a folder or tag. These retained records are kept when ordinary unsaved history expires. Pinning also makes an item available in the pinned-only view.

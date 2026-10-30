@@ -21,3 +21,7 @@ P pins an item, Shift + P opens pin-to-folder, and Option + P opens name-and-pin
 ## Take down or trash
 
 On a shelf, S takes down an item and Backspace undoes the latest take-down. In Library, S moves the selection to Trash and Backspace or Command + Z undoes the latest recoverable move. Check the current surface before using S.
+
+## Search the current surface
+
+Shift + S searches shelves. In Library, Command + F searches the current view, while Command + 0, 1, 2 and 3 select all types, images, texts and links respectively. Command + K opens searchable Actions.

@@ -27,3 +27,5 @@ Native tests use synthetic files, isolated preferences and private pasteboards. 
 Results are recorded in [Validation](macos-validation.md), [Design](design.md), [Security review](security-review.md) and [Integration checks](integration-review.md). Personal data, build products, model downloads and test evidence stay outside Git.
 
 Actual external-app paste, physical titlebar interaction, VoiceOver, long-duration energy use, Intel and the complete supported-OS matrix require further qualification. Local testing does not establish those results.
+
+For repeatable local commands, use the [build guide](build-guide.md#verify-the-bundle) and [testing guide](testing-guide.md). Record the exact source revision with any release evidence.

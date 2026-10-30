@@ -9,3 +9,7 @@ The red close, yellow minimize and green zoom controls are at the top left. Clos
 ## Edit copied text
 
 Click the text to begin editing. Changes save automatically, and Command + Return finishes editing. Watch the status message for save errors before leaving the preview. The text editor keeps normal selection, typing and undo behavior.
+
+## Annotate an image
+
+Use **Image markup** or the default M browsing shortcut. The toolbar offers a selection tool, pen, marker, rectangle, ellipse, arrow, line and text. Select an existing annotation to work on it.

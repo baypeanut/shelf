@@ -13,3 +13,7 @@ Verify the bundle using the commands in [Building Shelf](build-guide.md#verify-t
 ## A new copy is missing
 
 Check the matching image, text or link switch in **Settings → Sources**, then make a fresh copy. Shelf skips existing clipboard contents at launch and supported sensitive markers. A single URL is routed to Links, while paragraphs remain text.
+
+## Screenshots do not appear
+
+Check the current screenshot destination and Shelf folder access. For an additional watched folder, confirm it is still listed under Sources. Test with a synthetic image in a test-owned folder; changing the system screenshot destination is unnecessary for that check.

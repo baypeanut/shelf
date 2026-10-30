@@ -16,3 +16,5 @@ Use the repository's private security reporting channel when available. Otherwis
 - Never commit user history, private screenshots, preferences, signing keys, tokens or test evidence containing personal data. The publication audit and pinned secret scanner run locally and in CI.
 
 Never disable Gatekeeper, change Keychain trust or share signing keys as an installation workaround.
+
+The [troubleshooting guide](https://github.com/baypeanut/shelf/blob/main/docs/troubleshooting.md#report-a-reproducible-problem) describes a safe public bug report. Use the private reporting route above for vulnerability details.

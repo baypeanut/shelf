@@ -21,3 +21,7 @@ A single web address is routed to Links. A paragraph that contains a link stays 
 ## Watch image folders
 
 Shelf observes the current screenshot destination while running, subject to macOS folder access. **Also watch folders** accepts up to three extra folders. Removing a watched folder leaves its files untouched.
+
+## Enable screenshot handling
+
+**Handle screenshots** uses Inbox mode and asks before changing the screenshot destination. Disable the mode or quit normally to restore the saved setting. If Shelf is interrupted, reopen it so managed settings can be restored.

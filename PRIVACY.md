@@ -25,3 +25,5 @@ The locally built Shelf app has no configured update feed and makes no update ch
 ## Privacy manifest
 
 `packaging/PrivacyInfo.xcprivacy` declares no tracking or developer-collected data. It records use of local preferences, file timestamps for owned/user-selected files, and elapsed time for app operations. This manifest is packaged with the app. App Store privacy answers must be reviewed against the final distribution build and its enabled features.
+
+For the corresponding controls and first-session steps, see [Using Shelf](https://github.com/baypeanut/shelf/blob/main/docs/user-guide.md). Review capture sources and link previews separately when deciding what to enable.

@@ -34,3 +34,12 @@ bash scripts/test-history.sh
 ```
 
 These scripts compile standalone runners against the native sources. They are useful for investigating test-runner or toolchain differences. They do not replace verification of the packaged application.
+
+## Build the UI harness
+
+```sh
+bash scripts/build-ui-tests.sh
+open "build/Shelf UI Test.app"
+```
+
+The separate harness uses synthetic fixtures and an isolated bundle identifier. Quit an existing harness before rebuilding it. Generated observations stay under `local/validation/current/`.

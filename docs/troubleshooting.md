@@ -17,3 +17,7 @@ Check the matching image, text or link switch in **Settings → Sources**, then 
 ## Screenshots do not appear
 
 Check the current screenshot destination and Shelf folder access. For an additional watched folder, confirm it is still listed under Sources. Test with a synthetic image in a test-owned folder; changing the system screenshot destination is unnecessary for that check.
+
+## Search returns nothing
+
+Clear the query, then check the sidebar scope, type filters and pinned-only state. Look in Library Trash if an item was removed or expired. Image-content search requires the optional model build, while text recognition is available in the default build.

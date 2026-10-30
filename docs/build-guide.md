@@ -62,3 +62,7 @@ To keep the app installed, quit the running copy and move the verified bundle to
 ## Change a release version
 
 `release-version.json` holds the version and build number used by packaging. The version checker expects a stable three-part version and a positive integer bundle build. Run its tests and validate the built app after changing either value.
+
+## Understand the output
+
+The builder produces an ad-hoc signed local application with hardened runtime. Developer ID signing, notarization and App Store distribution need additional work. Follow [Release readiness](release-readiness.md) before describing a build as ready for distribution.

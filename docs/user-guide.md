@@ -5,3 +5,7 @@ Shelf keeps recent images, text and links within reach from the menu bar. This g
 ## Find the shelves
 
 Open Shelf, then use Control + Option + T to show or hide the shelves with the default shortcut. A menu bar app can be running even when it has no ordinary document window open.
+
+## Choose what to capture
+
+In **Settings → Sources**, enable images, text or links individually. All three clipboard sources start disabled. Make a new copy after enabling a source; Shelf starts watching at the current clipboard change count.

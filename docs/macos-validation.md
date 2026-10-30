@@ -43,3 +43,5 @@ Two native event-dispatch regressions were reproduced before correction: a point
 Native button actions and accessibility actions were verified; coordinate input on the system titlebar was inconclusive in the automation session. Physical pointer input and actual VoiceOver use need separate manual qualification.
 
 External-app Accessibility paste, permission continuity, clean-account installation, Intel execution and the complete supported-OS matrix are not established by these synthetic tests. Signing, notarization and App Store qualification remain separate release work.
+
+To reproduce checks on another source revision, follow [Testing Shelf](testing-guide.md) and record fresh results with that revision and environment. The measurements above describe the recorded local run.

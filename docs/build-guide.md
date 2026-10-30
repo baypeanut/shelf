@@ -40,3 +40,13 @@ The model preparation step downloads pinned assets into ignored local storage. M
 ## Handle model downloads
 
 The model preparer checks pinned weight digests before use. If a download fails verification, inspect the error and the network path before retrying. Keep the pinned values and component notices intact. See [Dependencies](../DEPENDENCIES.md).
+
+## Verify the bundle
+
+```sh
+python3 scripts/check-release-version.py --app build/Shelf.app
+python3 scripts/verify-bundle.py build/Shelf.app
+codesign --verify --deep --strict build/Shelf.app
+```
+
+These checks cover version, identity, resources, runtime paths, signature integrity and isolated startup. They can be rerun after copying a bundle.

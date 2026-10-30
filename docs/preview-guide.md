@@ -13,3 +13,7 @@ Click the text to begin editing. Changes save automatically, and Command + Retur
 ## Annotate an image
 
 Use **Image markup** or the default M browsing shortcut. The toolbar offers a selection tool, pen, marker, rectangle, ellipse, arrow, line and text. Select an existing annotation to work on it.
+
+## Adjust annotation style
+
+The color control changes annotation color. **Annotation style** provides stroke width, shape fill and text size controls. These controls affect annotation appearance; they do not change the dimensions of the source image.

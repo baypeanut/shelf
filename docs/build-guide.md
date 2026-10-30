@@ -28,3 +28,11 @@ bash scripts/build-community.sh debug
 ```
 
 The output path is also `build/Shelf.app`, so this replaces the previous packaged build. Keep a separate copy if you need to compare debug and release applications.
+
+## Include visual search
+
+```sh
+SHELF_BUNDLE_MODELS=1 bash scripts/build-community.sh release
+```
+
+The model preparation step downloads pinned assets into ignored local storage. Models and their component notices are included only for this optional build. The default build still includes local Vision text recognition.

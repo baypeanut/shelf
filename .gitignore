@@ -18,6 +18,11 @@ __pycache__/
 *.sqlite*
 *.db
 *.log
+
+# Process dumps may contain copied content.
+core
+core.[0-9]*
+*.core
 test-results/
 playwright-report/
 

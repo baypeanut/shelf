@@ -9,3 +9,7 @@ Open Shelf, then use Control + Option + T to show or hide the shelves with the d
 ## Choose what to capture
 
 In **Settings → Sources**, enable images, text or links individually. All three clipboard sources start disabled. Make a new copy after enabling a source; Shelf starts watching at the current clipboard change count.
+
+## Copy a link
+
+A single web address is routed to Links. A paragraph that contains a link stays as text. Capturing the address and fetching its website title or thumbnail are separate settings.

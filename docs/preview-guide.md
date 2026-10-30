@@ -21,3 +21,7 @@ The color control changes annotation color. **Annotation style** provides stroke
 ## Crop an image
 
 Enter crop mode with the crop button or C while browsing an image. Adjust the crop area and use the checkmark or Return to apply it. Escape cancels the active crop, and **Reset crop** restores the crop boundary.
+
+## Undo an edit
+
+The markup toolbar provides Undo and Redo. Command + Z undoes a markup change and Command + Shift + Z redoes it. Check the active editor before using undo, since text editing and Library Trash have their own undo actions.

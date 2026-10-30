@@ -35,3 +35,7 @@ validation/
 *.swp
 *.swo
 *~
+
+# Per-user Xcode layouts and preferences.
+xcuserdata/
+*.xcuserstate

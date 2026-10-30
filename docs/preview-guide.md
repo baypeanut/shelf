@@ -29,3 +29,7 @@ The markup toolbar provides Undo and Redo. Command + Z undoes a markup change an
 ## Keep the original
 
 Image markup and cropping preserve the original image while producing an edited representation. Verify an exported or copied image when its final dimensions matter, especially after applying a crop.
+
+## Copy recognized text
+
+Use **Copy text from image** or Command + Shift + C from a shelf, Library or image preview. Recognition runs locally. Its usefulness depends on the legibility and language of the image; inspect the copied text before relying on it.

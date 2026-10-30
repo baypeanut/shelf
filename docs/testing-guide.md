@@ -17,3 +17,11 @@ swift test -c release
 ```
 
 Optimization can change timing and expose assumptions. Compare failures by test name rather than expecting debug and release test counts to match, since some instrumentation is debug-only.
+
+## Reproduce a focused failure
+
+```sh
+swift test --filter PreviewWindowTests
+```
+
+Start with the failing suite to shorten the feedback cycle, then run the relevant broader tests after a correction. Preserve the synthetic reproduction and the expected user-visible behavior in a regression.

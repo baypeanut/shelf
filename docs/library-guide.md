@@ -17,3 +17,7 @@ The Sort menu offers newest first, oldest first, title, reverse title, last copi
 ## Keep a record
 
 Use **Save to library** from More, pin the selection, or organize it with a folder or tag. These retained records are kept when ordinary unsaved history expires. Pinning also makes an item available in the pinned-only view.
+
+## File items together
+
+Create a folder with Command + Shift + N. Select records and choose **Add to folder** from More. On a shelf, Shift + P opens the pin-to-folder picker. A Library folder is an organizational collection, not a Finder destination.

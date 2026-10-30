@@ -29,3 +29,7 @@ Shelf observes the current screenshot destination while running, subject to macO
 ## Save something useful
 
 Pin an item with P while browsing, or add it to a Library folder or tag. Favorites, folders and tags retain items beyond ordinary history expiry. [The Library guide](library-guide.md) explains the organization controls.
+
+## Find an item
+
+Use Shift + S to search the shelves, or open Library and use Command + F to search its current view. Check the active type and scope if an expected item is missing. Space previews the selection.

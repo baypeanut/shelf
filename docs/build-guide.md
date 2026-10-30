@@ -20,3 +20,11 @@ bash scripts/build-community.sh release
 ```
 
 The script builds the executable, resources, translations, icon and privacy manifest, then signs and verifies the resulting `build/Shelf.app`. It performs an isolated startup check and leaves the app ready to open.
+
+## Use a debug build
+
+```sh
+bash scripts/build-community.sh debug
+```
+
+The output path is also `build/Shelf.app`, so this replaces the previous packaged build. Keep a separate copy if you need to compare debug and release applications.

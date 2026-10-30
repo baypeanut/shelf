@@ -33,3 +33,7 @@ Image markup and cropping preserve the original image while producing an edited 
 ## Copy recognized text
 
 Use **Copy text from image** or Command + Shift + C from a shelf, Library or image preview. Recognition runs locally. Its usefulness depends on the legibility and language of the image; inspect the copied text before relying on it.
+
+## Recover from save failure
+
+If a preview cannot save, the close sheet offers **Try saving again**, **Discard changes** and **Keep editing**. Retry after resolving the storage problem, or keep editing to preserve the current draft. Discard deliberately abandons the unsaved changes.

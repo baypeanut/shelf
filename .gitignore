@@ -30,3 +30,8 @@ playwright-report/
 validation/
 
 # Pinned, reproducible offline search assets are prepared at build time.
+
+# Temporary editor files.
+*.swp
+*.swo
+*~

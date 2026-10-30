@@ -25,3 +25,5 @@ The image toolbar provides drawing, shapes, text, cropping and undo/redo. Floati
 ## Verification
 
 Synthetic app-window inspection covered light/dark shelves, Library, Settings, image/text previews, markup and native close/minimize actions. Native AppKit regressions cover window reuse, titlebar geometry, draft recovery, focus and undo/redo. Physical titlebar input and VoiceOver use still need separate manual qualification; accessibility action tests do not establish either.
+
+The [preview guide](preview-guide.md) describes the user-facing editing tools, crop controls and close-recovery choices. Keep those instructions aligned with any changes to the preview interface.

@@ -55,3 +55,14 @@ swift scripts/check-strings.swift
 ```
 
 Run this after changing localized strings. Keep source keys, all translation catalogs and any formatting placeholders consistent. A catalog check does not establish that every translation fits its native control.
+
+## Check publication safety
+
+```sh
+python3 scripts/test-audit-public.py
+python3 scripts/test-release-version.py
+python3 scripts/audit-public.py
+python3 scripts/check-secrets.py
+```
+
+The publication audit rejects private artifact paths and high-confidence secret formats. The pinned secret scanner also checks public Git history and verifies its detector with a positive control.

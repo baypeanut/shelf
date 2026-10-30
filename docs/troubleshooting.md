@@ -29,3 +29,7 @@ Try ordinary copy and paste first. Direct paste needs macOS Accessibility permis
 ## A preview stays open
 
 Look for a save-recovery sheet offering retry, discard or keep editing. **Keep editing** deliberately leaves the window open with its draft. The red close control is at the top left; use an explicit recovery choice if a save has failed.
+
+## A shortcut does nothing
+
+Check whether an editor has focus and whether the action applies to the current surface. Review its recorded binding in Settings and use the displayed command hint. Reset the individual action to its default before considering a full browsing-shortcut reset.

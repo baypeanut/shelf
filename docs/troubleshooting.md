@@ -33,3 +33,7 @@ Look for a save-recovery sheet offering retry, discard or keep editing. **Keep e
 ## A shortcut does nothing
 
 Check whether an editor has focus and whether the action applies to the current surface. Review its recorded binding in Settings and use the displayed command hint. Reset the individual action to its default before considering a full browsing-shortcut reset.
+
+## Report a reproducible problem
+
+Include expected behavior, actual behavior, a synthetic reproduction and version details. Share only the relevant redacted error excerpt. Keep clipboard databases, personal screenshots, preference files, credentials and complete unreviewed crash reports out of public issues. Report vulnerabilities through [Security](../SECURITY.md#report-an-issue).

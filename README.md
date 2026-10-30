@@ -73,6 +73,16 @@ Capture skips supported confidential, concealed, transient and password-manager 
 
 Link previews are off by default. When enabled, the destination website can see the request and your IP address. See [Privacy](PRIVACY.md) and [Security](SECURITY.md) for the complete behavior.
 
+## Guides
+
+- [Getting started](docs/user-guide.md)
+- [Library organization](docs/library-guide.md)
+- [Previews and editing](docs/preview-guide.md)
+- [Keyboard reference](docs/keyboard-guide.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Building from source](docs/build-guide.md)
+- [Testing changes](docs/testing-guide.md)
+
 ## Development
 
 ```sh

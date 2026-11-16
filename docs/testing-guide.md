@@ -56,6 +56,12 @@ bash scripts/benchmark-library.sh 5000,50000
 
 The benchmark builds fictional libraries of the given sizes in a temporary folder through the store's own API, then prints main-thread timings for opening the store, saving each kind of item, reloading the shelves and searching, with the database size. It runs optimized, opens no windows and is skipped by `swift test`. Compare runs on the same Mac; a 50,000-item run takes a few minutes.
 
+```sh
+bash scripts/benchmark-library.sh upgrade 50000
+```
+
+The upgrade form writes a library the way the previous build stored it, opens it with the current one and reports the first launch with its snapshot, saves made while the search index is built in the background, and the file size before and after.
+
 ## Validate translations
 
 ```sh

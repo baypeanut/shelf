@@ -18,6 +18,10 @@ Check the matching image, text or link switch in **Settings → Sources**, then 
 
 Check the current screenshot destination and Shelf folder access. For an additional watched folder, confirm it is still listed under Sources. Test with a synthetic image in a test-owned folder; changing the system screenshot destination is unnecessary for that check.
 
+## The Library could not be opened
+
+Shelf shows this when the database fails its integrity check. It keeps the existing files and pauses capture; **Open data folder** in the alert shows where they are. Before an update changes how the Library is stored, Shelf saves a dated copy in `Library/Snapshots/`. To go back to one, quit Shelf, move `library.sqlite` and any `library.sqlite-wal` and `library.sqlite-shm` beside it out of the folder, and put a copy of the snapshot there named `library.sqlite`. Items captured after the snapshot was made are not in it. Snapshots are deleted a week after they are made and by **Empty Trash…**.
+
 ## Search returns nothing
 
 Clear the query, then check the sidebar scope, type filters and pinned-only state. Look in Library Trash if an item was removed or expired; Trash itself is emptied after the period set in **Settings → History**. Image-content search requires the optional model build, while text recognition is available in the default build.

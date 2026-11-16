@@ -100,16 +100,20 @@ final class CaptureFlight {
 
         container.anchorPoint = CGPoint(x: 0.5, y: 1)   // the card's top center
         container.shadowColor = NSColor.black.cgColor
-        container.shadowOpacity = 0.09
+        container.shadowOpacity = 0.12
         container.shadowRadius = 4
         container.shadowOffset = CGSize(width: 0, height: -2)
 
-        glass.backgroundColor = NSColor(white: 0.97, alpha: 0.72).cgColor
-        edge.colors = [NSColor(white: 1, alpha: 0.9).cgColor, NSColor(white: 1, alpha: 0.25).cgColor]
+        // The flying card is the card it lands as: the same fill and the same hairline.
+        NSApp.effectiveAppearance.performAsCurrentDrawingAppearance {
+            glass.backgroundColor = NSColor.controlBackgroundColor.cgColor
+            let hairline = NSColor.separatorColor.cgColor
+            edge.colors = [hairline, hairline]
+        }
         edge.startPoint = CGPoint(x: 0.5, y: 1); edge.endPoint = CGPoint(x: 0.5, y: 0)
         edgeMask.fillColor = nil
         edgeMask.strokeColor = NSColor.black.cgColor
-        edgeMask.lineWidth = 1.5
+        edgeMask.lineWidth = 1
         edge.mask = edgeMask
 
         photo.contents = image

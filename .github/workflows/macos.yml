@@ -17,6 +17,15 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Cache search models
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: local/models/MobileCLIP
+          key: search-models-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-search-models.py') }}
       - name: Validate release version
         run: |
           python3 scripts/test-release-version.py
@@ -48,3 +57,52 @@ jobs:
           path: validation/macos/
           if-no-files-found: warn
           retention-days: 14
+      - name: Archive verified app
+        run: ditto -c -k --keepParent build/Shelf.app Shelf.zip
+      - name: Preserve app
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Shelf-${{ github.sha }}
+          path: Shelf.zip
+          retention-days: 7
+      - name: Report coverage
+        continue-on-error: true
+        run: |
+          swift test --enable-code-coverage
+          PROFILE=$(find .build -path '*/debug/codecov/default.profdata' -print -quit)
+          BINARY=$(find .build -type f -path '*/debug/ShelfPackageTests.xctest/Contents/MacOS/ShelfPackageTests' -print -quit)
+          xcrun llvm-cov report "$BINARY" -instr-profile="$PROFILE"
+  release-tests:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Test release configuration
+        run: swift test -c release
+  thread-sanitizer:
+    runs-on: macos-15
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Check thread safety
+        run: swift test --sanitize=thread 2>&1 | tee thread-sanitizer.log
+      - name: Preserve sanitizer log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: thread-sanitizer-${{ github.sha }}
+          path: thread-sanitizer.log
+          retention-days: 7

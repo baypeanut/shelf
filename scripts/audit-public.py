@@ -51,9 +51,6 @@ def audit(root):
         # Runtime-generated test keys remain in ignored temporary directories.
         for rule, pattern in PATTERNS.items():
             for match in re.finditer(pattern, data):
-                if (rule == 'url-userinfo' and name == 'Tests/ImageHistoryTests/AppUpdateControllerTests.swift' and
-                    match.group() == b'https://user' + b':password@'):
-                    continue  # Exact synthetic credential-rejection test, never a real credential.
                 findings.append({'file': name, 'line': data[:match.start()].count(b'\n') + 1, 'rule': rule})
     return {'filesScanned': len(manifest), 'findings': findings, 'files': manifest}
 

@@ -7,8 +7,7 @@ let package = Package(
     targets: [
         // Resources holds the translations. scripts/build-community.sh copies them
         // into the app, so SwiftPM leaves them alone.
-        // Local Shelf builds use only system frameworks. The updater is
-        // disabled, so its external framework must not load at startup.
+        // Shelf builds with system frameworks only and has no in-app updater.
         .executableTarget(name: "Shelf", path: "Sources/Shelf", exclude: ["Resources"]),
         .testTarget(name: "ShelfTests", dependencies: ["Shelf"]),
         .testTarget(name: "ImageHistoryTests", dependencies: ["Shelf"], path: "Tests/ImageHistoryTests")

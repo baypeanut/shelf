@@ -173,7 +173,6 @@ enum HistoryTestRunner {
         let namedPinPicker = NameAndPinPickerTests()
         let namedPinWorkflow = NameAndPinWorkflowTests()
         let namedShelfLabel = NamedShelfLabelTests()
-        let publicUpdates = PublicUpdateChannelTests()
         let previewWindows = PreviewWindowTests()
         let reopen = ApplicationReopenTests()
         let cases: [(String, () throws -> Void)] = [
@@ -249,9 +248,6 @@ enum HistoryTestRunner {
             ("testNativeMainWindowMouseBoundaryOnlyCapturesOnFreshLeftClick", mainWindowPasteFocusTests.testNativeMainWindowMouseBoundaryOnlyCapturesOnFreshLeftClick),
             ("testMainWindowControllersForwardEarlyCaptureWithoutDisplayingOrChangingKeyDispatch", mainWindowPasteFocusTests.testMainWindowControllersForwardEarlyCaptureWithoutDisplayingOrChangingKeyDispatch),
             ("testMainWindowMouseEntryPreservesOwnHandoffsAndRefreshesLaterExternalField", mainWindowPasteFocusTests.testMainWindowMouseEntryPreservesOwnHandoffsAndRefreshesLaterExternalField),
-            ("testOnlyBundledAnonymousChannelIsAccepted", publicUpdates.testOnlyBundledAnonymousChannelIsAccepted),
-            ("testMissingOrRelaxedVerificationAndAutomaticInstallationAreRejected", publicUpdates.testMissingOrRelaxedVerificationAndAutomaticInstallationAreRejected),
-            ("testOldAutomaticCheckOptOutWinsWithoutChangingSavedPreferences", publicUpdates.testOldAutomaticCheckOptOutWinsWithoutChangingSavedPreferences),
             ("testDirectPasteRestoresMissingInactiveFocusBeforeWritingClipboard", directPasteCoordinatorTests.testDirectPasteRestoresMissingInactiveFocusBeforeWritingClipboard),
             ("testDirectPasteCapturesBlurredEditorAfterReturningFromExistingLibrary", directPasteCoordinatorTests.testDirectPasteCapturesBlurredEditorAfterReturningFromExistingLibrary),
             ("testDirectPasteDeferredFocusStillRejectsSecureOrChangedOriginalField", directPasteCoordinatorTests.testDirectPasteDeferredFocusStillRejectsSecureOrChangedOriginalField),

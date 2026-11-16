@@ -354,11 +354,12 @@ final class LibraryNativeWindow: NSWindow {
             ZStack {
                 if model.listMode { LibraryList(model: model) } else { LibraryGrid(model: model, line: line) }
                 if model.ids.isEmpty && !model.loading {
-                    VStack(spacing: 12) {
-                        Image(systemName: model.query.scope == .trash ? "trash" : "square.stack.3d.up").font(.system(size: 38, weight: .light)).foregroundStyle(.secondary)
-                        Text(model.query.hasFilters ? L("No matching items") : L("Nothing here yet")).font(.title3.weight(.semibold))
+                    // The system's own empty state: symbol, title, one line and at most one button.
+                    ContentUnavailableView {
+                        Label(model.query.hasFilters ? L("No matching items") : L("Nothing here yet"), systemImage: model.query.scope == .trash ? "trash" : "tray")
+                    } description: {
                         Text(model.query.scope == .saved && !model.query.hasFilters ? L("Favorite an item, or add a folder or tag to keep it here.") : L("Try another filter or view your recent copies."))
-                            .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 290)
+                    } actions: {
                         if model.query.hasFilters { Button(L("Clear filters")) { model.clearFilters() } }
                         else if model.query.scope == .saved { Button(L("View recent copies")) { model.changeScope(.recent) } }
                     }
@@ -373,7 +374,7 @@ final class LibraryNativeWindow: NSWindow {
                 if !model.imageSearchStatus.isEmpty { Text(model.imageSearchStatus).lineLimit(1) }
             }.font(.system(size: 11)).foregroundStyle(.secondary).padding(.horizontal, 20).padding(.vertical, 8)
             if let notice = model.notice ?? model.store.notice {
-                HStack { Text(notice); Spacer(); Button(L("Dismiss")) { model.clearNotice() } }.font(.caption).padding(10).background(.regularMaterial)
+                HStack { Text(notice); Spacer(); Button(L("Dismiss")) { model.clearNotice() } }.font(.caption).controlSize(.small).padding(.horizontal, 20).padding(.vertical, 8).background(.bar)
             }
         }.background(Color(nsColor: .textBackgroundColor))
     }
@@ -438,9 +439,9 @@ final class LibraryNativeWindow: NSWindow {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     HStack { Label(record.kind == .text ? L("Text") : record.kind == .image ? L("Image") : L("Link"), systemImage: record.kind == .image ? "photo" : record.kind == .text ? "text.alignleft" : "link").font(.caption.weight(.semibold)).foregroundStyle(.secondary); Spacer(); Button { model.onPreview?(record.id) } label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }.help(L("Preview")) }
-                    TextField(record.displayTitle.isEmpty ? L("Title") : record.displayTitle, text: $model.draftTitle, axis: .vertical).font(.system(size: 16, weight: .semibold)).textFieldStyle(.plain).accessibilityLabel(L("Title")).accessibilityIdentifier("library-detail-name")
+                    TextField(record.displayTitle.isEmpty ? L("Title") : record.displayTitle, text: $model.draftTitle, axis: .vertical).font(.title3.weight(.semibold)).textFieldStyle(.plain).accessibilityLabel(L("Title")).accessibilityIdentifier("library-detail-name")
                     if record.kind == .text {
-                        VStack(alignment: .leading, spacing: 7) { Text(L("Text")).font(.caption).foregroundStyle(.secondary); TextEditor(text: $model.draftText).font(.system(size: 13)).scrollContentBackground(.hidden).frame(minHeight: 150, maxHeight: 260).padding(8).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8)).accessibilityLabel(L("Text")).accessibilityIdentifier("library-detail-text") }
+                        VStack(alignment: .leading, spacing: 7) { Text(L("Text")).font(.caption).foregroundStyle(.secondary); TextEditor(text: $model.draftText).font(.system(size: 13)).scrollContentBackground(.hidden).frame(minHeight: 150, maxHeight: 260).padding(8).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: ShelfTheme.Radius.control)).accessibilityLabel(L("Text")).accessibilityIdentifier("library-detail-text") }
                     }
                     if let url = record.linkURL {
                         Text(url.absoluteString).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
@@ -462,7 +463,7 @@ final class LibraryNativeWindow: NSWindow {
                         ForEach(model.inspectedTags) { tag in HStack { Text("#" + tag.name).font(.caption); Spacer(); Button { model.removeTag(tag.id) } label: { Image(systemName: "xmark") }.buttonStyle(.plain).help(L("Remove tag") + ": " + tag.name).accessibilityLabel(L("Remove tag") + ": " + tag.name) } }
                         Button(L("Add tag…")) { actions?.promptTag() }.controlSize(.small)
                     }
-                    VStack(alignment: .leading, spacing: 7) { Text(L("Note")).font(.caption.weight(.semibold)).foregroundStyle(.secondary); TextEditor(text: $model.draftNote).font(.system(size: 12)).scrollContentBackground(.hidden).frame(height: 100).padding(8).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8)).accessibilityLabel(L("Note")).accessibilityIdentifier("library-detail-note") }
+                    VStack(alignment: .leading, spacing: 7) { Text(L("Note")).font(.caption.weight(.semibold)).foregroundStyle(.secondary); TextEditor(text: $model.draftNote).font(.system(size: 12)).scrollContentBackground(.hidden).frame(height: 100).padding(8).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: ShelfTheme.Radius.control)).accessibilityLabel(L("Note")).accessibilityIdentifier("library-detail-note") }
                     Text(record.createdAt, style: .date).font(.caption).foregroundStyle(.secondary)
                     if let source = record.source {
                         HStack(spacing: 6) {
@@ -481,10 +482,10 @@ final class LibraryNativeWindow: NSWindow {
                         Button(L("Export copies…")) { actions?.exportSelection() }
                         Button(L("Move to Trash…")) { actions?.confirmTrash() }
                     }
-                }.padding(20)
+                }.controlSize(.small).padding(20)
             }
         } else {
-            VStack(spacing: 12) { Image(systemName: "sidebar.right").font(.system(size: 28, weight: .light)); Text(L("Select an item to view its details")).font(.caption).multilineTextAlignment(.center) }.foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity).padding(20)
+            Text(L("Select an item to view its details")).font(.callout).multilineTextAlignment(.center).foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity).padding(20)
         }
     }
 }

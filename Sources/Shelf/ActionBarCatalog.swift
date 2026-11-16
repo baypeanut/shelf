@@ -31,7 +31,7 @@ enum ActionBarMenuAction: String, CaseIterable {
     case searchAll, searchText, searchVisual, daysAny, days7, days30
     case refreshLink, openFile, quickLook, revealFile, saveToDesktop, takeDownLeft, takeDownRight, trimVideo
     case resetZoom, markupUndo, markupRedo, markupDelete, markupClear, markupSave, markupFinish, markupStyles
-    case toggleLine, copyLatestImage, openScreenshotsFolder, checkUpdates, installUpdate, releases, quit
+    case toggleLine, copyLatestImage, openScreenshotsFolder, releases, quit
 }
 
 @MainActor enum ActionBarCatalog {
@@ -58,8 +58,6 @@ enum ActionBarMenuAction: String, CaseIterable {
         var activeFavorites = false
         var lineRevealed = false
         var libraryAvailable = true
-        var canCheckUpdates = false
-        var canInstallUpdate = false
         var globalToggleHint = ""
         var copyLatestHint = ""
         var visibleShelves = Set<Shelf>()
@@ -399,8 +397,6 @@ enum ActionBarMenuAction: String, CaseIterable {
         case .markupClear: return require(c.isMarkupEditing && c.hasAnnotations, L("No annotations to clear"))
         case .markupSave, .markupFinish: return require(c.isMarkupEditing, L("Start image markup first"))
         case .copyLatestImage: return require(c.hasLatestImage, L("No images on the line"))
-        case .checkUpdates: return require(c.canCheckUpdates, L("Update checks unavailable"))
-        case .installUpdate: return require(c.canInstallUpdate, L("No update available"))
         case .clearUnsavedHistory, .emptyTrash: return require(c.libraryAvailable, L("Library unavailable"))
         case .settings, .settingsGeneral, .settingsHistory, .settingsSources, .settingsShortcuts, .settingsAbout,
              .toggleLine, .openScreenshotsFolder, .releases, .quit: return (true, "")
@@ -514,8 +510,6 @@ enum ActionBarMenuAction: String, CaseIterable {
         case .toggleLine: return (L("Show line"), app, "rectangle.3.group", ["show", "hide", "shelf", "line", "göster", "gizle", "askı"])
         case .copyLatestImage: return (L("Copy latest image"), app, "doc.on.doc", ["copy", "latest", "image", "kopyala", "son", "görsel"])
         case .openScreenshotsFolder: return (L("Open screenshots folder"), app, "folder", ["screenshots", "folder", "open", "ekran görüntüsü", "klasör", "aç"])
-        case .checkUpdates: return (L("Check for updates…"), app, "arrow.clockwise", ["check", "update", "release", "kontrol", "güncelleme", "sürüm"])
-        case .installUpdate: return (L("Install update…"), app, "arrow.down.circle", ["install", "update", "download", "yükle", "güncelleme", "indir"])
         case .releases: return (L("Shelf releases"), app, "arrow.up.right.square", ["release", "version", "sürüm"])
         case .quit: return (String(format: L("Quit %@"), AppIdentity.name), app, "power", ["quit", "exit", "app", "çık", "kapat", "uygulama"])
         }

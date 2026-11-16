@@ -299,7 +299,6 @@
 "The target text field changed. Reopen the shelves and try again." = "Le champ de texte cible a changé. Rouvrez les lignes et réessayez.";
 "Could not paste into the target app." = "Impossible de coller dans l’application cible.";
 "Pasted" = "Collé";
-"App updates" = "App updates";
 "Check for an update when you are ready." = "Check for an update when you are ready.";
 "Check for updates…" = "Check for updates…";
 "Checking for updates…" = "Checking for updates…";
@@ -346,7 +345,6 @@
 "Annotation text size" = "Taille du texte d’annotation";
 "Update available" = "Mise à jour disponible";
 "Shelf %@ is ready to install." = "Shelf %@ est prêt à être installé.";
-"Install update…" = "Installer la mise à jour…";
 "Name and pin…" = "Nommer et épingler…";
 "Add a name for search…" = "Ajouter un nom pour la recherche…";
 "Pin with name" = "Épingler avec un nom";
@@ -372,7 +370,6 @@
 "No items to the left" = "Aucun élément à gauche";
 "No items to the right" = "Aucun élément à droite";
 "No matching actions" = "Aucune action correspondante";
-"No update available" = "Aucune mise à jour disponible";
 "Nothing to redo" = "Rien à rétablir";
 "Nothing to undo" = "Rien à annuler";
 "Open a shelf or Library first" = "Ouvrez d’abord une étagère ou la bibliothèque";
@@ -401,7 +398,6 @@
 "Start editing text first" = "Commencez d’abord à modifier le texte";
 "Start image markup first" = "Commencez d’abord à annoter l’image";
 "Trim video" = "Rogner la vidéo";
-"Update checks unavailable" = "Vérification des mises à jour indisponible";
 "Crop image" = "Recadrer l’image";
 "Apply crop" = "Appliquer le recadrage";
 "Reset crop" = "Réinitialiser le recadrage";
@@ -409,7 +405,6 @@
 "Drag to select the crop area. Enter applies; Esc cancels." = "Faites glisser pour sélectionner la zone à recadrer. Entrée applique ; Échap annule.";
 "Allow this app in Privacy & Security → Device Control and Data Access to paste into another app." = "Pour coller dans une autre app, autorisez cette app dans Confidentialité et sécurité → Device Control and Data Access.";
 "Open Device Control and Data Access" = "Ouvrir Device Control and Data Access";
-"Updates" = "Updates";
 "Copies to clear" = "Copies to clear";
 "%d unsaved copies" = "%d unsaved copies";
 "Clear unsaved copies…" = "Clear unsaved copies…";
@@ -421,7 +416,6 @@
 "Undo Move to Trash" = "Annuler le déplacement vers la corbeille";
 "Shelf releases" = "Shelf releases";
 "This build is updated manually." = "This build is updated manually.";
-"Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose." = "Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose.";
 "Updates are not configured for this local build." = "Updates are not configured for this local build.";
 "Your changes could not be saved." = "Your changes could not be saved.";
 "Try saving again, discard these changes, or keep editing." = "Try saving again, discard these changes, or keep editing.";

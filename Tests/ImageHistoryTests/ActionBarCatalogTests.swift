@@ -98,7 +98,7 @@ import XCTest
         XCTAssertEqual(try command(.menu(.markupFinish), context: context, bindings: bindings).keyHint, "⌘↩ / Esc")
     }
 
-    func testCatalogShelfLibraryTrashAndUpdateAvailabilityDoNotBleedAcrossContexts() throws {
+    func testCatalogShelfLibraryAndTrashAvailabilityDoNotBleedAcrossContexts() throws {
         let fixture = try SyntheticFixture(); defer { fixture.cleanup() }
         let bindings = KeyboardBindings(defaults: fixture.defaults)
         var context = ActionBarCatalog.Context()
@@ -121,11 +121,6 @@ import XCTest
         XCTAssertTrue(try command(.menu(.restore), context: context, bindings: bindings).isEnabled)
         XCTAssertFalse(try command(.menu(.retain), context: context, bindings: bindings).isEnabled)
         XCTAssertFalse(try command(.keyboard(.trash), context: context, bindings: bindings).isEnabled)
-        XCTAssertFalse(try command(.menu(.checkUpdates), context: context, bindings: bindings).isEnabled)
-        XCTAssertFalse(try command(.menu(.installUpdate), context: context, bindings: bindings).isEnabled)
-        context.canCheckUpdates = true; context.canInstallUpdate = true
-        XCTAssertTrue(try command(.menu(.checkUpdates), context: context, bindings: bindings).isEnabled)
-        XCTAssertTrue(try command(.menu(.installUpdate), context: context, bindings: bindings).isEnabled)
         context.libraryAvailable = false
         XCTAssertFalse(try command(.keyboard(.library), context: context, bindings: bindings).isEnabled)
         XCTAssertFalse(try command(.menu(.newNote), context: context, bindings: bindings).isEnabled)

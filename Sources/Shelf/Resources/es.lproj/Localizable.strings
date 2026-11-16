@@ -299,7 +299,6 @@
 "The target text field changed. Reopen the shelves and try again." = "El campo de texto de destino cambió. Vuelve a abrir las líneas e inténtalo de nuevo.";
 "Could not paste into the target app." = "No se pudo pegar en la aplicación de destino.";
 "Pasted" = "Pegado";
-"App updates" = "App updates";
 "Check for an update when you are ready." = "Check for an update when you are ready.";
 "Check for updates…" = "Check for updates…";
 "Checking for updates…" = "Checking for updates…";
@@ -346,7 +345,6 @@
 "Annotation text size" = "Tamaño del texto de anotación";
 "Update available" = "Actualización disponible";
 "Shelf %@ is ready to install." = "Shelf %@ está listo para instalar.";
-"Install update…" = "Instalar actualización…";
 "Name and pin…" = "Nombrar y fijar…";
 "Add a name for search…" = "Añade un nombre para buscar…";
 "Pin with name" = "Fijar con nombre";
@@ -372,7 +370,6 @@
 "No items to the left" = "No hay elementos a la izquierda";
 "No items to the right" = "No hay elementos a la derecha";
 "No matching actions" = "No hay acciones coincidentes";
-"No update available" = "No hay actualizaciones disponibles";
 "Nothing to redo" = "No hay nada que rehacer";
 "Nothing to undo" = "No hay nada que deshacer";
 "Open a shelf or Library first" = "Abre primero un estante o la biblioteca";
@@ -401,7 +398,6 @@
 "Start editing text first" = "Empieza a editar el texto primero";
 "Start image markup first" = "Empieza a marcar la imagen primero";
 "Trim video" = "Recortar vídeo";
-"Update checks unavailable" = "Comprobación de actualizaciones no disponible";
 "Crop image" = "Recortar imagen";
 "Apply crop" = "Aplicar recorte";
 "Reset crop" = "Restablecer recorte";
@@ -409,7 +405,6 @@
 "Drag to select the crop area. Enter applies; Esc cancels." = "Arrastra para seleccionar el área de recorte. Intro aplica; Esc cancela.";
 "Allow this app in Privacy & Security → Device Control and Data Access to paste into another app." = "Para pegar en otra app, permite el acceso a esta app en Privacidad y seguridad → Device Control and Data Access.";
 "Open Device Control and Data Access" = "Abrir Device Control and Data Access";
-"Updates" = "Actualizaciones";
 "Copies to clear" = "Copies to clear";
 "%d unsaved copies" = "%d unsaved copies";
 "Clear unsaved copies…" = "Clear unsaved copies…";
@@ -421,7 +416,6 @@
 "Undo Move to Trash" = "Deshacer mover a la papelera";
 "Shelf releases" = "Shelf releases";
 "This build is updated manually." = "This build is updated manually.";
-"Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose." = "Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose.";
 "Updates are not configured for this local build." = "Updates are not configured for this local build.";
 "Your changes could not be saved." = "Your changes could not be saved.";
 "Try saving again, discard these changes, or keep editing." = "Try saving again, discard these changes, or keep editing.";

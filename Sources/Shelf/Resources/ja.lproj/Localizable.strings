@@ -299,7 +299,6 @@
 "The target text field changed. Reopen the shelves and try again." = "ペースト先のテキスト欄が変わりました。棚を開き直して、もう一度お試しください。";
 "Could not paste into the target app." = "ペースト先のアプリにペーストできませんでした。";
 "Pasted" = "ペーストしました";
-"App updates" = "App updates";
 "Check for an update when you are ready." = "Check for an update when you are ready.";
 "Check for updates…" = "Check for updates…";
 "Checking for updates…" = "Checking for updates…";
@@ -346,7 +345,6 @@
 "Annotation text size" = "注釈テキストのサイズ";
 "Update available" = "アップデートがあります";
 "Shelf %@ is ready to install." = "Shelf %@をインストールできます。";
-"Install update…" = "アップデートをインストール…";
 "Name and pin…" = "名前を付けてピン留め…";
 "Add a name for search…" = "検索用の名前を追加…";
 "Pin with name" = "名前を付けてピン留め";
@@ -372,7 +370,6 @@
 "No items to the left" = "左側に項目がありません";
 "No items to the right" = "右側に項目がありません";
 "No matching actions" = "一致するアクションがありません";
-"No update available" = "利用可能なアップデートはありません";
 "Nothing to redo" = "やり直す操作がありません";
 "Nothing to undo" = "取り消す操作がありません";
 "Open a shelf or Library first" = "先にシェルフまたはライブラリを開いてください";
@@ -401,7 +398,6 @@
 "Start editing text first" = "先にテキストの編集を開始してください";
 "Start image markup first" = "先に画像のマークアップを開始してください";
 "Trim video" = "ビデオをトリミング";
-"Update checks unavailable" = "アップデートを確認できません";
 "Crop image" = "画像を切り抜く";
 "Apply crop" = "切り抜きを適用";
 "Reset crop" = "切り抜きをリセット";
@@ -409,7 +405,6 @@
 "Drag to select the crop area. Enter applies; Esc cancels." = "ドラッグして切り抜く範囲を選択します。Enterで適用、Escでキャンセルします。";
 "Allow this app in Privacy & Security → Device Control and Data Access to paste into another app." = "ほかのアプリにペーストするには、「プライバシーとセキュリティ」→「Device Control and Data Access」でこのアプリを許可してください。";
 "Open Device Control and Data Access" = "Device Control and Data Accessを開く";
-"Updates" = "Updates";
 "Copies to clear" = "Copies to clear";
 "%d unsaved copies" = "%d unsaved copies";
 "Clear unsaved copies…" = "Clear unsaved copies…";
@@ -421,7 +416,6 @@
 "Undo Move to Trash" = "ゴミ箱への移動を取り消す";
 "Shelf releases" = "Shelf releases";
 "This build is updated manually." = "This build is updated manually.";
-"Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose." = "Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose.";
 "Updates are not configured for this local build." = "Updates are not configured for this local build.";
 "Your changes could not be saved." = "Your changes could not be saved.";
 "Try saving again, discard these changes, or keep editing." = "Try saving again, discard these changes, or keep editing.";

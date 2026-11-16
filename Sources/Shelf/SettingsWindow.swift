@@ -17,8 +17,6 @@ enum AppIdentity {
 final class SettingsModel: ObservableObject {
     let line: Line
     let allowsSystemChanges: Bool
-    let updates: AppUpdateController
-    @Published var updatesRequest = 0
     @Published var section: SettingsSection = .general
     @Published var shortcutWarning: String?
     var onCommands: () -> Void = {}
@@ -48,10 +46,9 @@ final class SettingsModel: ObservableObject {
     private let launchLanguage: String
     private let pastePermissionGranted: () -> Bool
 
-    init(line: Line, allowsSystemChanges: Bool = true, languageDefaults: UserDefaults = .standard, updates: AppUpdateController? = nil,
+    init(line: Line, allowsSystemChanges: Bool = true, languageDefaults: UserDefaults = .standard,
          pastePermissionGranted: @escaping () -> Bool = { AXIsProcessTrusted() }) {
         self.line = line; self.allowsSystemChanges = allowsSystemChanges
-        self.updates = updates ?? AppUpdateController(enabled: allowsSystemChanges)
         self.languageDefaults = languageDefaults; launchLanguage = LanguagePreferences.selection(languageDefaults)
         self.pastePermissionGranted = pastePermissionGranted
     }
@@ -116,12 +113,11 @@ final class SettingsWindowController: NSWindowController {
         model.refresh()
         NSApp.activate(ignoringOtherApps: true)
         showWindow(nil); window?.makeKeyAndOrderFront(nil)
-        if model.section == .updates { model.updates.refreshWhenUpdatesAreShown() }
     }
 }
 
 enum SettingsSection: String, CaseIterable, Identifiable {
-    case general, history, sources, shortcuts, updates, about
+    case general, history, sources, shortcuts, about
     var id: Self { self }
     var title: String {
         switch self {
@@ -129,7 +125,6 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .history: L("History")
         case .sources: L("Sources")
         case .shortcuts: L("Keyboard shortcuts")
-        case .updates: L("Updates")
         case .about: L("About")
         }
     }
@@ -139,7 +134,6 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .history: "clock.arrow.circlepath"
         case .sources: "tray.and.arrow.down"
         case .shortcuts: "keyboard"
-        case .updates: "arrow.triangle.2.circlepath"
         case .about: "info.circle"
         }
     }
@@ -186,14 +180,12 @@ private struct SettingsView: View {
                     case .history: history
                     case .sources: sources
                     case .shortcuts: shortcuts
-                    case .updates: AppUpdatesView(updates: model.updates)
                     case .about: about
                     }
                 }.formStyle(.grouped)
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in model.refresh() }
-        .onReceive(model.$updatesRequest) { if $0 > 0 { model.section = .updates } }
     }
 
     private var general: some View {
@@ -398,31 +390,9 @@ private struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
             Section {
-                Button(L("Check for updates…")) { model.section = .updates; model.updates.manualCheck() }
-            }
-            Section {
+                Text(L("This build is updated manually."))
                 Link(L("Shelf releases"), destination: AppDelegate.updatesURL)
             }
         }
-    }
-}
-
-@MainActor
-private struct AppUpdatesView: View {
-    @ObservedObject var updates: AppUpdateController
-    var body: some View {
-        Section {
-            HStack(spacing: 14) {
-                Image(systemName: "shippingbox").font(.system(size: 28, weight: .light)).foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(AppIdentity.name).font(.headline)
-                    Text("\(AppIdentity.version) · \(AppIdentity.build)").font(.caption).foregroundStyle(.secondary)
-                }
-            }.padding(.vertical, 8)
-            Text(L("This build is updated manually.")).font(.body)
-            Text(L("Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose."))
-                .font(.caption).foregroundStyle(.secondary)
-            Link(L("Shelf releases"), destination: AppDelegate.updatesURL)
-        } header: { Text(L("App updates")) }
     }
 }

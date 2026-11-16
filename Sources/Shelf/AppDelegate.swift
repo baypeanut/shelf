@@ -111,16 +111,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var shortcutRecorder: ShortcutRecorder?
     private var shortcutRestoreWarning: String?
     private(set) var settingsController: SettingsWindowController?
-    private lazy var appUpdates: AppUpdateController = {
-        let controller = AppUpdateController(enabled: watchesFiles)
-        controller.canQuit = { [weak self] in
-            guard let self else { return false }
-            return (self.flushPreviewEdits()) && (self.libraryController?.flush() ?? true)
-        }
-        return controller
-    }()
-    private let updateNotifications = UpdateNotifications()
-    private var updateWakeObserver: NSObjectProtocol?
     private var operationBusy = false
     private var previousApplication: NSRunningApplication?
     private lazy var keyboard = LineKeyboard(line: line,
@@ -258,7 +248,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if watchesFiles { registerSearchShortcut(line.globalSearchShortcut, persist: false) }
         setUpStatusItem()
         watchMenuBarClicks()
-        setUpAutomaticUpdates()
         if let store = line.library {
             let search = LibraryImageSearch(store: store); imageSearch = search; store.imageSearch = search; search.start()
         }
@@ -328,8 +317,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        appUpdates.stopAutomaticChecks()
-        if let updateWakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(updateWakeObserver) }
         directPaste.cancel(); imageTextCopy?.cancel()
         imageSearch?.stop()
         _ = preview?.flushEdits(); _ = textPreview?.flushEdits()
@@ -892,42 +879,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Menu bar
 
-    private func setUpAutomaticUpdates() {
-        guard watchesFiles, appUpdates.isConfigured else { return }
-        updateNotifications.start()
-        updateNotifications.onResponse = { [weak self] response in
-            guard let self else { return }
-            self.showUpdateSettings()
-            switch response {
-            case .show: break
-            case .install(let build): self.appUpdates.installAvailableUpdate(expectedBuild: build)
-            }
-        }
-        appUpdates.onAutomaticUpdateAvailable = { [weak self] update, completion in
-            guard let self else { completion(false); return }
-            self.updateNotifications.announce(update, completion: completion)
-        }
-        appUpdates.onPublicUpdateAvailable = { [weak self] version, build in
-            self?.updateNotifications.announce(version: version, build: build) { _ in }
-        }
-        appUpdates.$automaticChecksEnabled.sink { [weak self] enabled in
-            self?.updateNotifications.setEnabled(enabled)
-        }.store(in: &cancellables)
-        appUpdates.objectWillChange.receive(on: RunLoop.main).sink { [weak self] _ in
-            self?.updateStatusIcon()
-        }.store(in: &cancellables)
-        updateWakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.appUpdates.recheckAutomaticUpdatesAfterWake() }
-            }
-        appUpdates.startAutomaticChecks()
-    }
-
-    private func showUpdateSettings() {
-        showSettings()
-        settingsController?.model.updatesRequest += 1
-    }
-
     private func setUpStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         updateStatusIcon()
@@ -947,11 +898,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let symbol = NSImage(systemSymbolName: AppIdentity.statusSymbol + (on ? ".fill" : ""), accessibilityDescription: AppIdentity.name) {
             statusItem?.button?.image = summary.image(symbol: symbol)
         }
-        let update = appUpdates.availableVersion != nil ? L("Update available") : nil
-        statusItem?.button?.appearsDisabled = summary.count == 0 && update == nil
-        statusItem?.button?.contentTintColor = update == nil ? nil : .systemBlue
-        statusItem?.button?.toolTip = [AppIdentity.name, summary.description, update].compactMap { $0 }.joined(separator: "\n")
-        statusItem?.button?.setAccessibilityLabel([AppIdentity.name, summary.description, update].compactMap { $0 }.joined(separator: ", "))
+        statusItem?.button?.appearsDisabled = summary.count == 0
+        statusItem?.button?.toolTip = [AppIdentity.name, summary.description].joined(separator: "\n")
+        statusItem?.button?.setAccessibilityLabel([AppIdentity.name, summary.description].joined(separator: ", "))
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -981,23 +930,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         })
         menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(L("Settings…"), key: ",") { [weak self] in self?.showSettings() })
-        if let version = appUpdates.availableVersion, let build = appUpdates.availableBuild {
-            let install = ClosureMenuItem(L("Install update…") + " " + version) { [weak self] in
-                guard let self else { return }
-                self.showUpdateSettings()
-                self.appUpdates.installAvailableUpdate(expectedBuild: build)
-            }
-            install.image = NSImage(systemSymbolName: "arrow.down.circle", accessibilityDescription: L("Update available"))
-            install.isEnabled = watchesFiles && startupError == nil && !appUpdates.busy
-            menu.addItem(install)
-        }
-        let updates = ClosureMenuItem(L("Check for updates…")) { [weak self] in
-            guard let self else { return }
-            self.showUpdateSettings()
-            self.appUpdates.manualCheck()
-        }
-        updates.isEnabled = watchesFiles && startupError == nil && appUpdates.isConfigured
-        menu.addItem(updates)
         menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(String(format: L("Quit %@"), AppIdentity.name), key: "q") { NSApp.terminate(nil) })
     }
@@ -1014,7 +946,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard startupError == nil else { showStartupFailure(); return }
         capturePasteTarget()
         if settingsController == nil {
-            let model = SettingsModel(line: line, allowsSystemChanges: watchesFiles, updates: appUpdates)
+            let model = SettingsModel(line: line, allowsSystemChanges: watchesFiles)
             model.shortcutWarning = shortcutRestoreWarning
             model.onCommands = { [weak self] in self?.showCommands(origin: .application) }
             model.setSize = { [weak self] in self?.setSize($0) }
@@ -1145,7 +1077,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     static var updatesURL: URL {
-        // Open only Shelf release notes; updates are disabled until independently signed.
+        // Shelf has no in-app updater. This opens the public releases page only.
         URL(string: "https://github.com/baypeanut/shelf/releases")!
     }
 
@@ -1678,8 +1610,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         value.activeFavorites = snapshot.inLibrary ? libraryController?.model.showingPinnedOnly == true : line.activeFavoritesOnly
         value.visibleShelves = Set(line.presentation.shelves)
         value.lineRevealed = isRevealed; value.libraryAvailable = line.library != nil
-        value.canCheckUpdates = watchesFiles && startupError == nil && appUpdates.isConfigured && !appUpdates.busy
-        value.canInstallUpdate = watchesFiles && startupError == nil && appUpdates.availableVersion != nil && !appUpdates.busy
         switch snapshot.origin {
         case .library, .libraryPreview: value.hasItems = libraryController?.model.ids.isEmpty == false
         case .shelfPreview: value.hasItems = previewSession?.ids.isEmpty == false
@@ -1916,10 +1846,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .toggleLine: toggle()
         case .copyLatestImage: copyLatest()
         case .openScreenshotsFolder: NSWorkspace.shared.open(watcher?.folder ?? line.historyFiles.inbox)
-        case .checkUpdates: showUpdateSettings(); appUpdates.manualCheck()
-        case .installUpdate:
-            guard let build = appUpdates.availableBuild else { return }
-            showUpdateSettings(); appUpdates.installAvailableUpdate(expectedBuild: build)
         case .releases: NSWorkspace.shared.open(Self.updatesURL)
         case .quit: NSApp.terminate(nil)
         }

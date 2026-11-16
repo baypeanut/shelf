@@ -299,7 +299,6 @@
 "The target text field changed. Reopen the shelves and try again." = "目标文本框已更改。请重新打开挂架并重试。";
 "Could not paste into the target app." = "无法粘贴到目标应用。";
 "Pasted" = "已粘贴";
-"App updates" = "App updates";
 "Check for an update when you are ready." = "Check for an update when you are ready.";
 "Check for updates…" = "Check for updates…";
 "Checking for updates…" = "Checking for updates…";
@@ -346,7 +345,6 @@
 "Annotation text size" = "批注文字大小";
 "Update available" = "有可用更新";
 "Shelf %@ is ready to install." = "Shelf %@已可安装。";
-"Install update…" = "安装更新…";
 "Name and pin…" = "命名并置顶…";
 "Add a name for search…" = "添加用于搜索的名称…";
 "Pin with name" = "命名并置顶";
@@ -372,7 +370,6 @@
 "No items to the left" = "左侧没有项目";
 "No items to the right" = "右侧没有项目";
 "No matching actions" = "没有匹配的操作";
-"No update available" = "没有可用更新";
 "Nothing to redo" = "没有可重做的操作";
 "Nothing to undo" = "没有可撤销的操作";
 "Open a shelf or Library first" = "请先打开置物架或资料库";
@@ -401,7 +398,6 @@
 "Start editing text first" = "请先开始编辑文本";
 "Start image markup first" = "请先开始图像标记";
 "Trim video" = "修剪视频";
-"Update checks unavailable" = "无法检查更新";
 "Crop image" = "裁剪图像";
 "Apply crop" = "应用裁剪";
 "Reset crop" = "重置裁剪";
@@ -409,7 +405,6 @@
 "Drag to select the crop area. Enter applies; Esc cancels." = "拖动以选择裁剪区域。按 Enter 应用，按 Esc 取消。";
 "Allow this app in Privacy & Security → Device Control and Data Access to paste into another app." = "要粘贴到其他 App，请在「隐私与安全」→「Device Control and Data Access」中允许此 App。";
 "Open Device Control and Data Access" = "打开 Device Control and Data Access";
-"Updates" = "更新";
 "Copies to clear" = "Copies to clear";
 "%d unsaved copies" = "%d unsaved copies";
 "Clear unsaved copies…" = "Clear unsaved copies…";
@@ -421,7 +416,6 @@
 "Undo Move to Trash" = "撤销移到废纸篓";
 "Shelf releases" = "Shelf releases";
 "This build is updated manually." = "This build is updated manually.";
-"Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose." = "Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose.";
 "Updates are not configured for this local build." = "Updates are not configured for this local build.";
 "Your changes could not be saved." = "Your changes could not be saved.";
 "Try saving again, discard these changes, or keep editing." = "Try saving again, discard these changes, or keep editing.";

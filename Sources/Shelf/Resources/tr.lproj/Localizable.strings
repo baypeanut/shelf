@@ -299,7 +299,6 @@
 "The target text field changed. Reopen the shelves and try again." = "Hedef metin alanı değişti. Askıları yeniden açıp tekrar dene.";
 "Could not paste into the target app." = "Hedef uygulamaya yapıştırılamadı.";
 "Pasted" = "Yapıştırıldı";
-"App updates" = "Uygulama güncellemeleri";
 "Check for an update when you are ready." = "Hazır olduğunda güncellemeleri kontrol edebilirsin.";
 "Check for updates…" = "Güncellemeleri kontrol et…";
 "Checking for updates…" = "Güncellemeler kontrol ediliyor…";
@@ -346,7 +345,6 @@
 "Annotation text size" = "İşaret metni boyutu";
 "Update available" = "Güncelleme var";
 "Shelf %@ is ready to install." = "Shelf %@ yüklemeye hazır.";
-"Install update…" = "Güncellemeyi yükle…";
 "Name and pin…" = "İsim ver ve sabitle…";
 "Add a name for search…" = "Arama için bir isim ekle…";
 "Pin with name" = "İsimle sabitle";
@@ -372,7 +370,6 @@
 "No items to the left" = "Solda öğe yok";
 "No items to the right" = "Sağda öğe yok";
 "No matching actions" = "Eşleşen eylem yok";
-"No update available" = "Yeni güncelleme yok";
 "Nothing to redo" = "Yinelenecek işlem yok";
 "Nothing to undo" = "Geri alınacak işlem yok";
 "Open a shelf or Library first" = "Önce bir askı veya Kütüphane’yi aç";
@@ -401,7 +398,6 @@
 "Start editing text first" = "Önce metni düzenlemeye başla";
 "Start image markup first" = "Önce görseli işaretlemeye başla";
 "Trim video" = "Videoyu kırp";
-"Update checks unavailable" = "Güncelleme kontrolü kullanılamıyor";
 "Crop image" = "Görseli kırp";
 "Apply crop" = "Kırpmayı uygula";
 "Reset crop" = "Kırpmayı sıfırla";
@@ -409,7 +405,6 @@
 "Drag to select the crop area. Enter applies; Esc cancels." = "Kırpılacak alanı seçmek için sürükle. Enter uygular; Esc iptal eder.";
 "Allow this app in Privacy & Security → Device Control and Data Access to paste into another app." = "Başka bir uygulamaya yapıştırmak için Gizlilik ve Güvenlik → Device Control and Data Access bölümünde bu uygulamaya izin verin.";
 "Open Device Control and Data Access" = "Device Control and Data Access bölümünü aç";
-"Updates" = "Güncellemeler";
 "Copies to clear" = "Temizlenecek kopyalar";
 "%d unsaved copies" = "%d kaydedilmemiş kopya";
 "Clear unsaved copies…" = "Kaydedilmemiş kopyaları temizle…";
@@ -421,7 +416,6 @@
 "Undo Move to Trash" = "Çöp’e taşımayı geri al";
 "Shelf releases" = "Shelf sürümleri";
 "This build is updated manually." = "Bu derleme elle güncellenir.";
-"Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose." = "Shelf bir güncelleme sunucusuna bağlanmaz ve GitHub erişim anahtarı kullanmaz. İstediğinizde kendi deponuzdan yeni bir derleme indirebilirsiniz.";
 "Updates are not configured for this local build." = "Bu yerel derleme için güncellemeler yapılandırılmadı.";
 "Your changes could not be saved." = "Değişiklikleriniz kaydedilemedi.";
 "Try saving again, discard these changes, or keep editing." = "Yeniden kaydetmeyi deneyin, bu değişiklikleri bırakın veya düzenlemeye devam edin.";

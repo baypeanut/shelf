@@ -299,7 +299,6 @@
 "The target text field changed. Reopen the shelves and try again." = "Hədəf mətn sahəsi dəyişdi. Asılqanları yenidən açıb təkrar sınayın.";
 "Could not paste into the target app." = "Hədəf tətbiqə yapışdırmaq mümkün olmadı.";
 "Pasted" = "Yapışdırıldı";
-"App updates" = "App updates";
 "Check for an update when you are ready." = "Check for an update when you are ready.";
 "Check for updates…" = "Check for updates…";
 "Checking for updates…" = "Checking for updates…";
@@ -346,7 +345,6 @@
 "Annotation text size" = "İşarə mətninin ölçüsü";
 "Update available" = "Yeniləmə mövcuddur";
 "Shelf %@ is ready to install." = "Shelf %@ quraşdırılmağa hazırdır.";
-"Install update…" = "Yeniləməni quraşdır…";
 "Name and pin…" = "Ad ver və bərkit…";
 "Add a name for search…" = "Axtarış üçün ad əlavə et…";
 "Pin with name" = "Adla bərkit";
@@ -372,7 +370,6 @@
 "No items to the left" = "Solda element yoxdur";
 "No items to the right" = "Sağda element yoxdur";
 "No matching actions" = "Uyğun əməliyyat tapılmadı";
-"No update available" = "Yeni yeniləmə yoxdur";
 "Nothing to redo" = "Təkrarlanacaq əməliyyat yoxdur";
 "Nothing to undo" = "Geri alınacaq əməliyyat yoxdur";
 "Open a shelf or Library first" = "Əvvəlcə rəfi və ya Kitabxananı açın";
@@ -401,7 +398,6 @@
 "Start editing text first" = "Əvvəlcə mətni redaktə etməyə başlayın";
 "Start image markup first" = "Əvvəlcə şəkli işarələməyə başlayın";
 "Trim video" = "Videonu kəs";
-"Update checks unavailable" = "Yeniləmə yoxlaması əlçatan deyil";
 "Crop image" = "Şəkli kəs";
 "Apply crop" = "Kəsməni tətbiq et";
 "Reset crop" = "Kəsməni sıfırla";
@@ -409,7 +405,6 @@
 "Drag to select the crop area. Enter applies; Esc cancels." = "Kəsiləcək sahəni seçmək üçün sürükləyin. Enter tətbiq edir; Esc ləğv edir.";
 "Allow this app in Privacy & Security → Device Control and Data Access to paste into another app." = "Başqa tətbiqə yapışdırmaq üçün Məxfilik və Təhlükəsizlik → Device Control and Data Access bölməsində bu tətbiqə icazə verin.";
 "Open Device Control and Data Access" = "Device Control and Data Access bölməsini aç";
-"Updates" = "Updates";
 "Copies to clear" = "Copies to clear";
 "%d unsaved copies" = "%d unsaved copies";
 "Clear unsaved copies…" = "Clear unsaved copies…";
@@ -421,7 +416,6 @@
 "Undo Move to Trash" = "Zibil qutusuna köçürməni geri al";
 "Shelf releases" = "Shelf releases";
 "This build is updated manually." = "This build is updated manually.";
-"Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose." = "Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose.";
 "Updates are not configured for this local build." = "Updates are not configured for this local build.";
 "Your changes could not be saved." = "Your changes could not be saved.";
 "Try saving again, discard these changes, or keep editing." = "Try saving again, discard these changes, or keep editing.";

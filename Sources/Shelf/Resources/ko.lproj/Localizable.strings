@@ -299,7 +299,6 @@
 "The target text field changed. Reopen the shelves and try again." = "대상 텍스트 입력란이 변경되었습니다. 선반을 다시 열고 다시 시도하세요.";
 "Could not paste into the target app." = "대상 앱에 붙여넣지 못했습니다.";
 "Pasted" = "붙여넣었습니다";
-"App updates" = "App updates";
 "Check for an update when you are ready." = "Check for an update when you are ready.";
 "Check for updates…" = "Check for updates…";
 "Checking for updates…" = "Checking for updates…";
@@ -346,7 +345,6 @@
 "Annotation text size" = "주석 텍스트 크기";
 "Update available" = "업데이트 사용 가능";
 "Shelf %@ is ready to install." = "Shelf %@을(를) 설치할 수 있습니다.";
-"Install update…" = "업데이트 설치…";
 "Name and pin…" = "이름을 지정하고 고정…";
 "Add a name for search…" = "검색할 이름 추가…";
 "Pin with name" = "이름을 지정하여 고정";
@@ -372,7 +370,6 @@
 "No items to the left" = "왼쪽에 항목이 없음";
 "No items to the right" = "오른쪽에 항목이 없음";
 "No matching actions" = "일치하는 동작이 없음";
-"No update available" = "사용 가능한 업데이트가 없음";
 "Nothing to redo" = "다시 실행할 작업이 없음";
 "Nothing to undo" = "실행 취소할 작업이 없음";
 "Open a shelf or Library first" = "먼저 선반 또는 라이브러리를 여세요";
@@ -401,7 +398,6 @@
 "Start editing text first" = "먼저 텍스트 편집을 시작하세요";
 "Start image markup first" = "먼저 이미지 마크업을 시작하세요";
 "Trim video" = "동영상 다듬기";
-"Update checks unavailable" = "업데이트를 확인할 수 없음";
 "Crop image" = "이미지 자르기";
 "Apply crop" = "자르기 적용";
 "Reset crop" = "자르기 초기화";
@@ -409,7 +405,6 @@
 "Drag to select the crop area. Enter applies; Esc cancels." = "드래그하여 자를 영역을 선택하세요. Enter로 적용하고 Esc로 취소합니다.";
 "Allow this app in Privacy & Security → Device Control and Data Access to paste into another app." = "다른 앱에 붙여넣으려면 개인정보 보호 및 보안 → Device Control and Data Access에서 이 앱을 허용하세요.";
 "Open Device Control and Data Access" = "Device Control and Data Access 열기";
-"Updates" = "Updates";
 "Copies to clear" = "Copies to clear";
 "%d unsaved copies" = "%d unsaved copies";
 "Clear unsaved copies…" = "Clear unsaved copies…";
@@ -421,7 +416,6 @@
 "Undo Move to Trash" = "휴지통으로 이동 실행 취소";
 "Shelf releases" = "Shelf releases";
 "This build is updated manually." = "This build is updated manually.";
-"Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose." = "Shelf does not contact an update server or use a GitHub token. Download a new build from your repository when you choose.";
 "Updates are not configured for this local build." = "Updates are not configured for this local build.";
 "Your changes could not be saved." = "Your changes could not be saved.";
 "Try saving again, discard these changes, or keep editing." = "Try saving again, discard these changes, or keep editing.";

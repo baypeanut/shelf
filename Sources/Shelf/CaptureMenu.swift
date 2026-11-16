@@ -17,9 +17,10 @@ enum CaptureMenu {
         switch capture.pauseState {
         case .running: return nil
         case .paused(until: nil): return L("Clipboard capture paused until you resume")
-        case let .paused(until: until?):
+        case .paused(until: let until?):
             let formatter = DateComponentsFormatter()
-            formatter.unitsStyle = .short; formatter.maximumUnitCount = 1
+            formatter.unitsStyle = .short
+            formatter.maximumUnitCount = 1
             let seconds = max(1, until.timeIntervalSince(now))
             // Round up so the last minute never reads as "0 min".
             formatter.allowedUnits = seconds >= 60 ? [.hour, .minute] : [.second]

@@ -1,7 +1,8 @@
 import AppKit
+
 #if !STANDALONE_TESTS
-import XCTest
-@testable import Shelf
+    import XCTest
+    @testable import Shelf
 #endif
 
 @MainActor final class SourceAppStoreTests: HistoryTestCase {
@@ -12,13 +13,17 @@ import XCTest
     }
 
     func testSourceIsPersistedForEveryKindAndReturnedAfterReopening() throws {
-        let f = try SyntheticFixture(); defer { f.cleanup() }
+        let f = try SyntheticFixture()
+        defer { f.cleanup() }
         var library = try store(f)
         let text = try XCTUnwrap(library.captureText("Synthetic sourced text", source: editor))
         let link = try library.captureLink(try XCTUnwrap(URL(string: "https://example.com/sourced")), source: browser)
         let image = try library.captureImage(try f.image(), source: editor)
         let plain = try XCTUnwrap(library.captureText("Synthetic unsourced text"))
-        XCTAssertEqual(text.source, editor); XCTAssertEqual(link.source, browser); XCTAssertEqual(image.source, editor); XCTAssertNil(plain.source)
+        XCTAssertEqual(text.source, editor)
+        XCTAssertEqual(link.source, browser)
+        XCTAssertEqual(image.source, editor)
+        XCTAssertNil(plain.source)
         library = try store(f)
         XCTAssertEqual(try library.item(text.id)?.source, editor)
         XCTAssertEqual(try library.item(link.id)?.source, browser)
@@ -29,7 +34,9 @@ import XCTest
     }
 
     func testSourceFilterMatchesBundleIdentifierWithoutCaseAndCombinesWithOtherFilters() throws {
-        let f = try SyntheticFixture(); defer { f.cleanup() }; let library = try store(f)
+        let f = try SyntheticFixture()
+        defer { f.cleanup() }
+        let library = try store(f)
         let text = try XCTUnwrap(library.captureText("Synthetic filter text", source: editor))
         let image = try library.captureImage(try f.image(), source: editor)
         let link = try library.captureLink(try XCTUnwrap(URL(string: "https://example.com/filter")), source: browser)
@@ -42,33 +49,43 @@ import XCTest
         XCTAssertEqual(Set(try library.queryIDs(query)), [text.id, image.id])
         query.kind = .text
         XCTAssertEqual(try library.query(query).map(\.id), [text.id])
-        query.kind = nil; query.sourceBundleID = browser.bundleID
+        query.kind = nil
+        query.sourceBundleID = browser.bundleID
         XCTAssertEqual(try library.query(query).map(\.id), [link.id])
         query.sourceBundleID = "com.example.unknown"
         XCTAssertTrue(try library.query(query).isEmpty)
     }
 
     func testRecopyRecordsItsNewSourceAndAnUnknownSourceKeepsTheEarlierOne() throws {
-        let f = try SyntheticFixture(); defer { f.cleanup() }; let library = try store(f)
+        let f = try SyntheticFixture()
+        defer { f.cleanup() }
+        let library = try store(f)
         let url = try XCTUnwrap(URL(string: "https://example.com/recopied"))
         let text = try XCTUnwrap(library.captureText("Synthetic recopied text", source: editor))
         let link = try library.captureLink(url, source: editor)
         f.date.addTimeInterval(1)
         XCTAssertEqual(try XCTUnwrap(library.captureText("Synthetic recopied text")).id, text.id)
         XCTAssertEqual(try library.captureLink(url).id, link.id)
-        XCTAssertEqual(try library.item(text.id)?.source, editor); XCTAssertEqual(try library.item(link.id)?.source, editor)
+        XCTAssertEqual(try library.item(text.id)?.source, editor)
+        XCTAssertEqual(try library.item(link.id)?.source, editor)
         f.date.addTimeInterval(1)
-        _ = try library.captureText("Synthetic recopied text", source: browser); _ = try library.captureLink(url, source: browser)
-        XCTAssertEqual(try library.item(text.id)?.source, browser); XCTAssertEqual(try library.item(link.id)?.source, browser)
+        _ = try library.captureText("Synthetic recopied text", source: browser)
+        _ = try library.captureLink(url, source: browser)
+        XCTAssertEqual(try library.item(text.id)?.source, browser)
+        XCTAssertEqual(try library.item(link.id)?.source, browser)
         XCTAssertEqual(try library.sourceApps(), [browser])
     }
 
     func testEditsKeepTheSourceAndTrashedItemsLeaveTheSourceList() throws {
-        let f = try SyntheticFixture(); defer { f.cleanup() }; let library = try store(f)
+        let f = try SyntheticFixture()
+        defer { f.cleanup() }
+        let library = try store(f)
         let text = try XCTUnwrap(library.captureText("Synthetic edited text", source: editor))
-        try library.toggleFavorite([text.id]); try library.addTag("source", to: [text.id])
+        try library.toggleFavorite([text.id])
+        try library.addTag("source", to: [text.id])
         XCTAssertEqual(try library.item(text.id)?.source, editor)
-        var query = LibraryQuery(scope: .saved); query.sourceBundleID = editor.bundleID
+        var query = LibraryQuery(scope: .saved)
+        query.sourceBundleID = editor.bundleID
         XCTAssertEqual(try library.query(query).map(\.id), [text.id])
         try library.trash([text.id])
         XCTAssertTrue(try library.sourceApps().isEmpty)
@@ -108,29 +125,40 @@ import XCTest
             "CREATE TABLE image_analysis(item TEXT PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,path TEXT NOT NULL,fingerprint TEXT NOT NULL,version TEXT NOT NULL,content TEXT NOT NULL,ocr TEXT NOT NULL,vectors BLOB NOT NULL)",
             "CREATE TABLE image_markup_garbage(path TEXT PRIMARY KEY)",
             "INSERT INTO metadata VALUES('migration-v1','synthetic')",
-            "PRAGMA user_version=1"
+            "PRAGMA user_version=1",
         ] { try db.execute(sql) }
         let created = f.date.timeIntervalSince1970
-        let payload = "{\"id\":\"\(id.uuidString)\",\"kind\":\"text\",\"createdAt\":\(f.date.timeIntervalSinceReferenceDate),\"updatedAt\":\(f.date.timeIntervalSinceReferenceDate),\"favorite\":true,\"onShelf\":true,\"retainedAt\":\(f.date.timeIntervalSinceReferenceDate),\"title\":\"Legacy title\",\"note\":\"\",\"text\":\"Synthetic legacy text\",\"metadataState\":\"pending\"}"
-        try db.execute("INSERT INTO items VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [
-            .text(id.uuidString), .text("text"), .real(created), .real(created), .null, .real(created), .integer(1), .integer(1), .null,
-            .null, .null, .text(""), .text("legacy title"), .text("legacy title synthetic legacy text"), .blob(Data(payload.utf8))])
-        try db.execute("INSERT INTO search_fts(id,content) VALUES(?,?)", [.text(id.uuidString), .text("legacy title synthetic legacy text")])
+        let payload =
+            "{\"id\":\"\(id.uuidString)\",\"kind\":\"text\",\"createdAt\":\(f.date.timeIntervalSinceReferenceDate),\"updatedAt\":\(f.date.timeIntervalSinceReferenceDate),\"favorite\":true,\"onShelf\":true,\"retainedAt\":\(f.date.timeIntervalSinceReferenceDate),\"title\":\"Legacy title\",\"note\":\"\",\"text\":\"Synthetic legacy text\",\"metadataState\":\"pending\"}"
+        try db.execute(
+            "INSERT INTO items VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            [
+                .text(id.uuidString), .text("text"), .real(created), .real(created), .null, .real(created), .integer(1), .integer(1), .null,
+                .null, .null, .text(""), .text("legacy title"), .text("legacy title synthetic legacy text"), .blob(Data(payload.utf8)),
+            ])
+        try db.execute(
+            "INSERT INTO search_fts(id,content) VALUES(?,?)", [.text(id.uuidString), .text("legacy title synthetic legacy text")])
         return url
     }
 
     func testLibraryCreatedWithThePreviousSchemaOpensUnchangedAndThenRecordsSources() throws {
-        let f = try SyntheticFixture(); defer { f.cleanup() }
-        let id = UUID(), url = try makePreviousLibrary(f, id: id)
+        let f = try SyntheticFixture()
+        defer { f.cleanup() }
+        let id = UUID()
+        let url = try makePreviousLibrary(f, id: id)
         do {
             let before = try LibraryDatabase(url: url)
             XCTAssertTrue(try before.rows("SELECT name FROM sqlite_master WHERE name='item_source'").isEmpty)
         }
-        let original = try XCTUnwrap(LibraryDatabase(url: url).rows("SELECT payload FROM items WHERE id=?", [.text(id.uuidString)]).first?["payload"]?.data)
+        let original = try XCTUnwrap(
+            LibraryDatabase(url: url).rows("SELECT payload FROM items WHERE id=?", [.text(id.uuidString)]).first?["payload"]?.data)
         let library = try store(f)
         let legacy = try XCTUnwrap(library.item(id))
-        XCTAssertEqual(legacy.text, "Synthetic legacy text"); XCTAssertEqual(legacy.title, "Legacy title")
-        XCTAssertTrue(legacy.favorite); XCTAssertEqual(legacy.createdAt, f.date); XCTAssertNil(legacy.source)
+        XCTAssertEqual(legacy.text, "Synthetic legacy text")
+        XCTAssertEqual(legacy.title, "Legacy title")
+        XCTAssertTrue(legacy.favorite)
+        XCTAssertEqual(legacy.createdAt, f.date)
+        XCTAssertNil(legacy.source)
         XCTAssertEqual(try library.query(LibraryQuery()).map(\.id), [id])
         XCTAssertEqual(try library.shelfItems(.text).map(\.id), [id])
         XCTAssertTrue(try library.sourceApps().isEmpty)
@@ -139,7 +167,8 @@ import XCTest
         XCTAssertEqual(try reader.rows("SELECT payload FROM items WHERE id=?", [.text(id.uuidString)]).first?["payload"]?.data, original)
         XCTAssertEqual(try reader.rows("PRAGMA user_version").first?["user_version"]?.number, 1)
         XCTAssertEqual(try reader.rows("SELECT name FROM sqlite_master WHERE name='item_source'").count, 1)
-        var query = LibraryQuery(); query.sourceBundleID = editor.bundleID
+        var query = LibraryQuery()
+        query.sourceBundleID = editor.bundleID
         XCTAssertTrue(try library.query(query).isEmpty)
         // The legacy row gains a source when it is copied again, and new rows record theirs.
         f.date.addTimeInterval(1)
@@ -152,16 +181,20 @@ import XCTest
     }
 
     func testPayloadRewrittenByAnEarlierReleaseDropsTheStaleSourceIndexRow() throws {
-        let f = try SyntheticFixture(); defer { f.cleanup() }; let library = try store(f)
+        let f = try SyntheticFixture()
+        defer { f.cleanup() }
+        let library = try store(f)
         let text = try XCTUnwrap(library.captureText("Synthetic rollback text", source: editor))
         XCTAssertEqual(try library.sourceApps(), [editor])
         // An earlier release decodes the record without its source and writes it back.
         let old = try LibraryDatabase(url: library.databaseURL)
-        let payload = "{\"id\":\"\(text.id.uuidString)\",\"kind\":\"text\",\"createdAt\":\(text.createdAt.timeIntervalSinceReferenceDate),\"updatedAt\":\(text.updatedAt.timeIntervalSinceReferenceDate),\"favorite\":false,\"onShelf\":true,\"title\":\"\",\"note\":\"edited by an earlier release\",\"text\":\"Synthetic rollback text\",\"metadataState\":\"pending\"}"
+        let payload =
+            "{\"id\":\"\(text.id.uuidString)\",\"kind\":\"text\",\"createdAt\":\(text.createdAt.timeIntervalSinceReferenceDate),\"updatedAt\":\(text.updatedAt.timeIntervalSinceReferenceDate),\"favorite\":false,\"onShelf\":true,\"title\":\"\",\"note\":\"edited by an earlier release\",\"text\":\"Synthetic rollback text\",\"metadataState\":\"pending\"}"
         try old.execute("UPDATE items SET payload=? WHERE id=?", [.blob(Data(payload.utf8)), .text(text.id.uuidString)])
         XCTAssertNil(try library.item(text.id)?.source)
         XCTAssertTrue(try library.sourceApps().isEmpty)
-        var query = LibraryQuery(scope: .recent); query.sourceBundleID = editor.bundleID
+        var query = LibraryQuery(scope: .recent)
+        query.sourceBundleID = editor.bundleID
         XCTAssertTrue(try library.query(query).isEmpty)
     }
 }

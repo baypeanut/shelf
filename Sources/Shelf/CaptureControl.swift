@@ -42,12 +42,17 @@ final class CaptureControl: ClipboardAdmission {
     /// A pause just ended. The watchers start again from the board as it is now.
     var onResume: () -> Void = {}
 
-    init(defaults: UserDefaults = .standard, now: @escaping () -> Date = Date.init,
-         frontmost: @escaping @MainActor () -> SourceApp? = SourceApps.frontmost,
-         appName: @escaping @MainActor (String) -> String? = SourceApps.name(forBundleID:),
-         ownBundleID: String? = Bundle.main.bundleIdentifier) {
-        self.defaults = defaults; self.now = now; self.frontmost = frontmost
-        self.appName = appName; self.ownBundleID = ownBundleID
+    init(
+        defaults: UserDefaults = .standard, now: @escaping () -> Date = Date.init,
+        frontmost: @escaping @MainActor () -> SourceApp? = SourceApps.frontmost,
+        appName: @escaping @MainActor (String) -> String? = SourceApps.name(forBundleID:),
+        ownBundleID: String? = Bundle.main.bundleIdentifier
+    ) {
+        self.defaults = defaults
+        self.now = now
+        self.frontmost = frontmost
+        self.appName = appName
+        self.ownBundleID = ownBundleID
     }
 
     // MARK: Pause
@@ -58,9 +63,13 @@ final class CaptureControl: ClipboardAdmission {
         if defaults.bool(forKey: Key.pausedIndefinitely) { return .paused(until: nil) }
         let stored = defaults.double(forKey: Key.pausedUntil)
         guard stored > 0, stored.isFinite else { return .running }
-        let current = now(), longest = Self.timedPauses.max() ?? 0
+        let current = now()
+        let longest = Self.timedPauses.max() ?? 0
         var until = Date(timeIntervalSince1970: stored)
-        guard until > current else { defaults.removeObject(forKey: Key.pausedUntil); return .running }
+        guard until > current else {
+            defaults.removeObject(forKey: Key.pausedUntil)
+            return .running
+        }
         // A clock that moved backwards must not stretch a timed pause beyond
         // the longest one that can be asked for.
         if until.timeIntervalSince(current) > longest {
@@ -81,22 +90,26 @@ final class CaptureControl: ClipboardAdmission {
             defaults.removeObject(forKey: Key.pausedUntil)
         }
         skipsNextCopy = false
-        scheduleExpiry(); onChange()
+        scheduleExpiry()
+        onChange()
     }
 
     func resume() {
         guard isPaused else { return }
         defaults.removeObject(forKey: Key.pausedUntil)
         defaults.removeObject(forKey: Key.pausedIndefinitely)
-        scheduleExpiry(); onResume(); onChange()
+        scheduleExpiry()
+        onResume()
+        onChange()
     }
 
     /// Call once at launch: a pause restored from preferences still needs its
     /// expiry announced. The timer only refreshes what is shown; `pauseState`
     /// decides on its own whether capture is paused.
     func scheduleExpiry() {
-        expiry?.invalidate(); expiry = nil
-        guard case let .paused(until?) = pauseState else { return }
+        expiry?.invalidate()
+        expiry = nil
+        guard case .paused(let until?) = pauseState else { return }
         let timer = Timer(timeInterval: max(0.1, until.timeIntervalSince(now())), repeats: false) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -119,7 +132,8 @@ final class CaptureControl: ClipboardAdmission {
 
     func skips(changeCount: Int) -> Bool {
         if skipsNextCopy {
-            skipsNextCopy = false; skippedChangeCount = changeCount
+            skipsNextCopy = false
+            skippedChangeCount = changeCount
             onChange()
         }
         return skippedChangeCount == changeCount
@@ -137,10 +151,12 @@ final class CaptureControl: ClipboardAdmission {
     }
     func ignore(_ bundleID: String) {
         guard Self.isBundleID(bundleID), !isIgnored(bundleID) else { return }
-        ignoredBundleIDs.append(bundleID); onChange()
+        ignoredBundleIDs.append(bundleID)
+        onChange()
     }
     func stopIgnoring(_ bundleID: String) {
-        ignoredBundleIDs.removeAll { $0.caseInsensitiveCompare(bundleID) == .orderedSame }; onChange()
+        ignoredBundleIDs.removeAll { $0.caseInsensitiveCompare(bundleID) == .orderedSame }
+        onChange()
     }
 
     // MARK: Admission
@@ -162,7 +178,8 @@ final class CaptureControl: ClipboardAdmission {
         let front = frontmost()
         for (index, types) in items.enumerated() where types.contains(Self.sourceType) {
             guard let data = source.data(forType: Self.sourceType, at: index), data.count <= Self.maximumSourceBytes,
-                  let text = String(data: data, encoding: .utf8) else { continue }
+                let text = String(data: data, encoding: .utf8)
+            else { continue }
             let bundleID = text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard Self.isBundleID(bundleID) else { continue }
             if let front, front.bundleID.caseInsensitiveCompare(bundleID) == .orderedSame { return front }
@@ -172,8 +189,9 @@ final class CaptureControl: ClipboardAdmission {
     }
 
     static func isBundleID(_ value: String) -> Bool {
-        !value.isEmpty && value.utf8.count <= maximumSourceBytes && value.unicodeScalars.allSatisfy {
-            $0.isASCII && (CharacterSet.alphanumerics.contains($0) || $0 == "." || $0 == "-" || $0 == "_")
-        }
+        !value.isEmpty && value.utf8.count <= maximumSourceBytes
+            && value.unicodeScalars.allSatisfy {
+                $0.isASCII && (CharacterSet.alphanumerics.contains($0) || $0 == "." || $0 == "-" || $0 == "_")
+            }
     }
 }

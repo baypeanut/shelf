@@ -29,7 +29,8 @@ enum SourceApps {
         var seen = Set<String>()
         return NSWorkspace.shared.runningApplications.compactMap { app -> SourceApp? in
             guard app.activationPolicy == .regular, let bundleID = app.bundleIdentifier,
-                  bundleID != Bundle.main.bundleIdentifier, seen.insert(bundleID).inserted else { return nil }
+                bundleID != Bundle.main.bundleIdentifier, seen.insert(bundleID).inserted
+            else { return nil }
             return SourceApp(bundleID: bundleID, name: app.localizedName ?? bundleID)
         }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
@@ -39,12 +40,15 @@ enum SourceApps {
         let panel = NSOpenPanel()
         panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
         panel.allowedContentTypes = [.application]
-        panel.canChooseFiles = true; panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
         panel.prompt = L("Ignore")
         panel.message = L("Copies made in this app will not be captured.")
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url, let bundleID = Bundle(url: url)?.bundleIdentifier,
-              CaptureControl.isBundleID(bundleID) else { return nil }
+            CaptureControl.isBundleID(bundleID)
+        else { return nil }
         return SourceApp(bundleID: bundleID, name: name(ofApplicationAt: url))
     }
 
@@ -53,9 +57,14 @@ enum SourceApps {
 
     /// Icons are read from disk off the main thread, once per application.
     static func icon(forBundleID bundleID: String, completion: @escaping (NSImage?) -> Void) {
-        if let cached = icons.object(forKey: bundleID as NSString) { completion(cached); return }
+        if let cached = icons.object(forKey: bundleID as NSString) {
+            completion(cached)
+            return
+        }
         iconQueue.async {
-            let image = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID).map { NSWorkspace.shared.icon(forFile: $0.path) }
+            let image = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID).map {
+                NSWorkspace.shared.icon(forFile: $0.path)
+            }
             DispatchQueue.main.async {
                 if let image { icons.setObject(image, forKey: bundleID as NSString) }
                 completion(image)
@@ -71,7 +80,11 @@ struct SourceAppIcon: View {
     @State private var image: NSImage?
     var body: some View {
         Group {
-            if let image { Image(nsImage: image).resizable() } else { Image(systemName: "app.dashed").resizable().foregroundStyle(.secondary) }
+            if let image {
+                Image(nsImage: image).resizable()
+            } else {
+                Image(systemName: "app.dashed").resizable().foregroundStyle(.secondary)
+            }
         }
         .frame(width: size, height: size).accessibilityHidden(true)
         .task(id: bundleID) {

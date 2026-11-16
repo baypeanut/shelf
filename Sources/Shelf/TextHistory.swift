@@ -35,6 +35,7 @@ final class TextHistory: ObservableObject {
     private let copyTextOverride: ((String) -> Void)?
     private let library: LibraryStore?
     private var librarySubscription: AnyCancellable?
+    private var shelfRows: ShelfRows?
     private var writable = true
     var archive: URL { folder.appendingPathComponent("history.json") }
     // Filtering belongs to membership changes, not every scroll/hover/layout pass.
@@ -75,8 +76,13 @@ final class TextHistory: ObservableObject {
         self.defaults = defaults; self.folder = folder.standardizedFileURL
         self.now = now; self.moveToTrash = moveToTrash; copyTextOverride = copyText
         if let library {
+            shelfRows = ShelfRows(store: library, kind: .text)
             reloadFromLibrary()
-            librarySubscription = library.$revision.dropFirst().sink { [weak self, weak library] _ in if library?.changedKinds.contains(.text) == true { self?.reloadFromLibrary() } }
+            librarySubscription = library.$revision.dropFirst().sink { [weak self, weak library] revision in
+                guard let self, let library else { return }
+                self.shelfRows?.note(revision: revision, ids: library.changedIDs, kinds: library.changedKinds)
+                if library.changedKinds.contains(.text) { self.reloadFromLibrary() }
+            }
             return
         }
         if FileManager.default.fileExists(atPath: archive.path) {
@@ -96,11 +102,26 @@ final class TextHistory: ObservableObject {
         if pruneOnLoad { prune() }
     }
 
+    private static func entry(_ item: LibraryRecord) -> Entry {
+        Entry(id: item.id, text: item.text ?? "", capturedAt: item.createdAt, pinned: item.favorite, title: item.title.isEmpty ? nil : item.title)
+    }
+    /// A change that names its items touches only those entries; the whole
+    /// shelf is decoded and compared only when the store cannot say what changed.
     private func reloadFromLibrary() {
-        guard let library else { return }
+        guard let shelfRows else { return }
         do {
-            let updated = try library.shelfItems(.text).map { Entry(id: $0.id, text: $0.text ?? "", capturedAt: $0.createdAt, pinned: $0.favorite, title: $0.title.isEmpty ? nil : $0.title) }
-            if updated != entries { entries = updated; sanitizeFocus() }
+            switch try shelfRows.update() {
+            case .unchanged: break
+            case let .reloaded(records):
+                let updated = records.map(Self.entry)
+                if updated != entries { entries = updated; sanitizeFocus() }
+            case let .patched(changes):
+                switch ShelfRows.apply(changes, to: entries, id: \.id, make: Self.entry) {
+                case .same: break
+                case let .changed(updated): entries = updated; sanitizeFocus()
+                case .outOfStep: shelfRows.invalidate(); reloadFromLibrary()
+                }
+            }
         }
         catch { notice = L("Library could not be saved or opened") }
     }

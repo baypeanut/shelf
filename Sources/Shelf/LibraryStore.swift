@@ -454,7 +454,9 @@ extension String {
             // The cleared pages were overwritten in the log first; fold it back.
             _ = try? database.rows("PRAGMA wal_checkpoint(TRUNCATE)")
             // The old table leaves free pages behind; return them as a purge does.
-            if !status.isCancelled, Self.hasWorthwhileFreeSpace(database, fraction: 8) { _ = Self.vacuum(database, at: url) }
+            if !status.isCancelled, Self.hasWorthwhileFreeSpace(database, fraction: 8), Self.vacuum(database, at: url) {
+                Task { @MainActor [weak self] in self?.storageGeneration += 1 }
+            }
         }
     }
     /// Waits for background maintenance that has been started. For tests.
@@ -600,9 +602,44 @@ extension String {
             }
         }
     }
-    func shelfItems(_ kind: LibraryKind) throws -> [LibraryRecord] {
-        let order = kind == .link ? "COALESCE(copied,created) DESC,rowid DESC" : "created DESC,rowid DESC"
-        return try LibrarySQL.decode(db.rows("SELECT payload FROM items WHERE kind=? AND shelf=1 AND deleted IS NULL ORDER BY \(order)", [.text(kind.rawValue)]))
+    func shelfItems(_ kind: LibraryKind) throws -> [LibraryRecord] { try shelfRows(kind).map(\.record) }
+    /// A record on a shelf with what orders it there: `rank` descending, then
+    /// `position` descending. `position` is the row's place in the table and
+    /// changes for every row when the database is compacted.
+    struct ShelfRow {
+        let record: LibraryRecord
+        let rank: Double
+        let position: Int64
+    }
+    /// Changes whenever another connection commits, whatever it wrote.
+    func dataVersion() throws -> Int64? { try db.rows("PRAGMA data_version").first?["data_version"]?.number }
+    func shelfCount(_ kind: LibraryKind) throws -> Int {
+        Int(try db.rows("SELECT count(*) AS n FROM items WHERE kind=? AND shelf=1 AND deleted IS NULL", [.text(kind.rawValue)]).first?["n"]?.number ?? 0)
+    }
+    /// Counts compactions, each of which renumbers `ShelfRow.position`.
+    private(set) var storageGeneration = 0
+    /// One shelf in order, or only those of `ids` that are on it, in no order.
+    func shelfRows(_ kind: LibraryKind, ids: Set<UUID>? = nil) throws -> [ShelfRow] {
+        let rank = kind == .link ? "COALESCE(copied,created)" : "created"
+        let select = "SELECT payload,\(rank) AS rank,rowid AS position FROM items WHERE kind=? AND shelf=1 AND deleted IS NULL"
+        var rows = [[String: SQLValue]]()
+        if let ids {
+            let all = Array(ids)
+            var start = 0
+            while start < all.count {
+                let batch = all[start..<min(all.count, start + 500)]; start += 500
+                rows += try db.rows(select + " AND id IN (" + batch.map { _ in "?" }.joined(separator: ",") + ")", [.text(kind.rawValue)] + batch.map { .text($0.uuidString) })
+            }
+        } else {
+            rows = try db.rows(select + " ORDER BY \(rank) DESC,rowid DESC", [.text(kind.rawValue)])
+        }
+        let records = try LibrarySQL.decode(rows)
+        return try zip(records, rows).map { record, row in
+            let rank: Double
+            switch row["rank"] { case let .real(value)?: rank = value; case let .integer(value)?: rank = Double(value); default: throw HistoryFiles.Failure.unsafeFile }
+            guard let position = row["position"]?.number else { throw HistoryFiles.Failure.unsafeFile }
+            return ShelfRow(record: record, rank: rank, position: position)
+        }
     }
     func query(_ query: LibraryQuery, limit: Int = 80, offset: Int = 0) throws -> [LibraryRecord] {
         let (sql, values) = LibrarySQL.query(query, limit: limit, offset: offset, now: now(), indexComplete: searchIndexComplete); return try LibrarySQL.decode(db.rows(sql, values))
@@ -1262,7 +1299,12 @@ extension String {
         maintenanceQueue.async {
             var compacted = false
             if let database = try? LibraryDatabase(url: url, verify: false) { compacted = Self.vacuum(database, at: url) }
-            if let completion { Task { @MainActor in completion(compacted) } }
+            let result = compacted
+            Task { @MainActor [weak self] in
+                // Rows were renumbered; shelves holding their old places read them again.
+                if result { self?.storageGeneration += 1 }
+                completion?(result)
+            }
         }
     }
     nonisolated private static func hasWorthwhileFreeSpace(_ database: LibraryDatabase, fraction: Int64 = 4) -> Bool {

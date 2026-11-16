@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 /// Only metadata is persisted. Expiry never touches the system clipboard.
@@ -44,18 +45,45 @@ final class ImageHistory {
     let files: HistoryFiles
     private var legacyEntries: [Entry] = []
     private let library: LibraryStore?
+    private let shelfRows: ShelfRows?
+    private var shelfRecords = [LibraryRecord]()
+    private var shelfEntries: [Entry]?
+    /// With a library, the image shelf in order. It used to be read and decoded
+    /// in full on every access; now a store change that names its items costs
+    /// one query for those items, and an access with nothing new costs none.
     var entries: [Entry] {
-        get {
-            if let library {
-                return ((try? library.shelfItems(.image)) ?? []).compactMap { item in
-                    guard let path = item.path else { return nil }
-                    return Entry(path: path, capturedAt: item.createdAt, pinned: item.favorite, originalPath: item.originalPath, id: item.id, title: item.title.isEmpty ? nil : item.title)
-                }
-            }
-            return legacyEntries
-        }
+        get { shelfRows.map(libraryEntries) ?? legacyEntries }
         set { legacyEntries = newValue }
     }
+    private func libraryEntries(_ shelfRows: ShelfRows) -> [Entry] {
+        do {
+            switch try shelfRows.update() {
+            case .unchanged: break
+            case let .reloaded(records): shelfRecords = records; shelfEntries = nil
+            case let .patched(changes):
+                switch ShelfRows.apply(changes, to: shelfRecords, id: \.id, make: { $0 }) {
+                case .same: break
+                case let .changed(records): shelfRecords = records; shelfEntries = nil
+                case .outOfStep: shelfRows.invalidate(); return libraryEntries(shelfRows)
+                }
+            }
+        } catch {
+            // As before, a shelf that cannot be read is shown empty until it can.
+            shelfRows.invalidate(); return []
+        }
+        if let shelfEntries { return shelfEntries }
+        let result = shelfRecords.compactMap { item -> Entry? in
+            guard let path = item.path else { return nil }
+            return Entry(path: path, capturedAt: item.createdAt, pinned: item.favorite, originalPath: item.originalPath, id: item.id, title: item.title.isEmpty ? nil : item.title)
+        }
+        shelfEntries = result
+        return result
+    }
+    private var librarySubscription: AnyCancellable?
+    /// Tells the image shelf what one store revision changed. It observes the
+    /// store itself; an owner that reads `entries` while handling the same
+    /// revision calls this first, because observers are told in no promised order.
+    func noteLibraryChange(revision: Int, ids: Set<UUID>, kinds: Set<LibraryKind>) { shelfRows?.note(revision: revision, ids: ids, kinds: kinds) }
 
     var retentionDays: Int {
         let value = defaults.integer(forKey: Self.daysKey)
@@ -65,11 +93,18 @@ final class ImageHistory {
     init(defaults: UserDefaults, inbox: URL, now: @escaping () -> Date = Date.init,
          moveToTrash: @escaping (URL) throws -> URL = HistoryFiles.systemTrash, pruneOnLoad: Bool = true, library: LibraryStore? = nil) {
         self.library = library
+        shelfRows = library.map { ShelfRows(store: $0, kind: .image) }
         self.defaults = defaults
         self.inbox = inbox.standardizedFileURL
         self.now = now
         files = HistoryFiles(inbox: inbox, moveToTrash: moveToTrash)
-        if library != nil { return }
+        if let library {
+            librarySubscription = library.$revision.dropFirst().sink { [weak self, weak library] revision in
+                guard let self, let library else { return }
+                self.noteLibraryChange(revision: revision, ids: library.changedIDs, kinds: library.changedKinds)
+            }
+            return
+        }
         if let data = defaults.data(forKey: Self.entriesKey),
            let saved = try? JSONDecoder().decode([Entry].self, from: data) {
             var seen = Set<String>()

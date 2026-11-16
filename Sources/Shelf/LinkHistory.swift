@@ -21,6 +21,7 @@ import Combine
     let thumbnails = ThumbnailStore()
     let store: LibraryStore?
     private var subscription: AnyCancellable?
+    private var shelfRows: ShelfRows?
     private var anchor: UUID?
     private var feedbackGeneration = 0
     private let copyOverride: ((String) -> Void)?
@@ -53,15 +54,30 @@ import Combine
     }
     init(store: LibraryStore?, copy: ((String) -> Void)? = nil) {
         self.store = store; copyOverride = copy
+        shelfRows = store.map { ShelfRows(store: $0, kind: .link) }
         reload()
-        subscription = store?.$revision.dropFirst().sink { [weak self, weak store] _ in if store?.changedKinds.contains(.link) == true { self?.reload() } }
+        subscription = store?.$revision.dropFirst().sink { [weak self, weak store] revision in
+            guard let self, let store else { return }
+            self.shelfRows?.note(revision: revision, ids: store.changedIDs, kinds: store.changedKinds)
+            if store.changedKinds.contains(.link) { self.reload() }
+        }
         thumbnails.onLoad = { [weak self] in self?.objectWillChange.send() }
     }
+    /// A change that names its items touches only those entries; the whole
+    /// shelf is decoded and compared only when the store cannot say what changed.
     private func reload() {
-        guard let store else { return }
+        guard let shelfRows else { return }
         do {
-            let values = try store.shelfItems(.link)
-            if entries != values { entries = values; sanitize() }
+            switch try shelfRows.update() {
+            case .unchanged: break
+            case let .reloaded(values): if entries != values { entries = values; sanitize() }
+            case let .patched(changes):
+                switch ShelfRows.apply(changes, to: entries, id: \.id, make: { $0 }) {
+                case .same: break
+                case let .changed(values): entries = values; sanitize()
+                case .outOfStep: shelfRows.invalidate(); reload()
+                }
+            }
         } catch { notice = error.localizedDescription }
     }
     @discardableResult func add(_ url: URL, source: SourceApp? = nil) -> LibraryRecord? {

@@ -556,6 +556,8 @@ final class Line: ObservableObject {
     private var selectionAnchor: UUID?
     private(set) var viewportWidth: CGFloat = 1024
     private let history: ImageHistory
+    /// The image shelf entry each item was last built from.
+    private var itemEntries = [UUID: ImageHistory.Entry]()
     var historyFiles: HistoryFiles { history.files }
     private let defaults: UserDefaults
     let thumbnails = ThumbnailStore()
@@ -870,10 +872,18 @@ final class Line: ObservableObject {
         texts = TextHistory(defaults: defaults, folder: inbox.appendingPathComponent("Texts"), now: now, moveToTrash: moveToTrash, copyText: copyText, library: library, pruneOnLoad: pruneOnLoad)
         links = LinkHistory(store: library, copy: copyText)
         history = ImageHistory(defaults: defaults, inbox: inbox, now: now, moveToTrash: moveToTrash, pruneOnLoad: pruneOnLoad, library: library)
-        items = history.entries.map { Pegged(id: $0.id, url: $0.url, thumb: nil, pinned: $0.pinned, managedCopy: history.files.isAppCopy($0.url), originalPath: $0.originalPath, title: $0.title) }
+        let entries = history.entries
+        items = entries.map { Pegged(id: $0.id, url: $0.url, thumb: nil, pinned: $0.pinned, managedCopy: history.files.isAppCopy($0.url), originalPath: $0.originalPath, title: $0.title) }
+        if library != nil { itemEntries = Dictionary(entries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
         thumbnails.onLoad = { [weak self] in self?.refreshThumbnails(force: true) }
         refreshThumbnails()
-        if let library { librarySubscription = library.$revision.dropFirst().sink { [weak self, weak library] _ in if library?.changedKinds.contains(.image) == true { self?.reloadFromLibrary() } } }
+        if let library {
+            librarySubscription = library.$revision.dropFirst().sink { [weak self, weak library] revision in
+                guard let self, let library else { return }
+                self.history.noteLibraryChange(revision: revision, ids: library.changedIDs, kinds: library.changedKinds)
+                if library.changedKinds.contains(.image) { self.reloadFromLibrary() }
+            }
+        }
         shelfSearchSubscription = shelfSearch?.$states.receive(on: RunLoop.main).sink { [weak self] states in
             guard let self, self.shelfSearch?.states == states else { return }
             self.applyShelfSearchStates(states)
@@ -1135,13 +1145,21 @@ final class Line: ObservableObject {
 
     private func reloadFromLibrary() {
         let previous = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
-        let updated = history.entries.map { entry in
+        let entries = history.entries
+        var known = [UUID: ImageHistory.Entry](minimumCapacity: entries.count)
+        let updated = entries.map { entry -> Pegged in
+            known[entry.id] = entry
+            // An item whose entry has not changed is kept as it is. Rebuilding
+            // it asks the file system about its file, for every image, on
+            // every change to any of them.
+            if let item = previous[entry.id], itemEntries[entry.id] == entry { return item }
             var item = previous[entry.id] ?? Pegged(id: entry.id, url: entry.url, thumb: nil)
             item.url = entry.url; item.pinned = entry.pinned; item.originalPath = entry.originalPath
             item.title = entry.title
             item.managedCopy = history.files.isAppCopy(entry.url)
             return item
         }
+        itemEntries = known
         guard updated != items else { return }
         items = updated
         arrivalIDs.formIntersection(Set(items.map(\.id)))

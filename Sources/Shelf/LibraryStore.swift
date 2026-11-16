@@ -60,7 +60,8 @@ struct LibraryRecord: Codable, Equatable, Identifiable {
     var displayTitle: String {
         if !title.isEmpty { return title }
         if kind == .link, let metadataTitle, !metadataTitle.isEmpty { return metadataTitle }
-        if let text { return String(text.split(separator: "\n", omittingEmptySubsequences: false).first ?? "").trimmingCharacters(in: .whitespaces).prefix(120).description }
+        // Only the first line is read; a long text is not split into all of its lines to title it.
+        if let text { return String(text.prefix(while: { $0 != "\n" })).trimmingCharacters(in: .whitespaces).prefix(120).description }
         if let path { return URL(fileURLWithPath: originalPath ?? path).deletingPathExtension().lastPathComponent }
         return URL(string: originalURL ?? "")?.host ?? L("Link")
     }
@@ -293,6 +294,10 @@ extension String {
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: databaseURL.path)
         // Already in effect for a prepared database; neither writes to it.
         try db.execute("PRAGMA journal_mode=WAL")
+        // Every commit is flushed before a save returns. In write-ahead mode
+        // NORMAL could not corrupt the database, but a power loss could undo
+        // the last commits, pins, names and edits among them. A commit costs
+        // well under a tenth of a millisecond here, so nothing is traded away.
         try db.execute("PRAGMA synchronous=FULL")
         // Content removed from Trash is overwritten rather than left in free pages.
         try db.execute("PRAGMA secure_delete=ON")
@@ -318,9 +323,6 @@ extension String {
         for sql in [
             "CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL)",
             "CREATE TABLE IF NOT EXISTS items(id TEXT PRIMARY KEY,kind TEXT NOT NULL,created REAL NOT NULL,updated REAL NOT NULL,copied REAL,retained REAL,favorite INTEGER NOT NULL,shelf INTEGER NOT NULL,deleted REAL,path TEXT,normalized TEXT,domain TEXT NOT NULL,sort_title TEXT NOT NULL,search TEXT NOT NULL,payload BLOB NOT NULL)",
-            "DROP INDEX IF EXISTS live_image_path", "DROP INDEX IF EXISTS live_link_url",
-            "CREATE INDEX IF NOT EXISTS live_image_path ON items(path) WHERE kind='image' AND deleted IS NULL",
-            "CREATE INDEX IF NOT EXISTS live_link_url ON items(normalized) WHERE kind='link' AND deleted IS NULL",
             "CREATE INDEX IF NOT EXISTS item_order ON items(deleted,retained,kind,created DESC)",
             "CREATE INDEX IF NOT EXISTS shelf_search_scope ON items(kind,shelf,deleted)",
             "CREATE INDEX IF NOT EXISTS shelf_capture_order ON items(kind,shelf,deleted,created)",
@@ -351,6 +353,13 @@ extension String {
             // to recoverable Trash, never external source screenshots.
             "CREATE TABLE IF NOT EXISTS image_markup_garbage(path TEXT PRIMARY KEY)"
         ] { try db.execute(sql) }
+        // These two once had another definition. Rebuild one only if it is not
+        // the current one, rather than on every launch.
+        for (name, definition) in [("live_image_path", "items(path) WHERE kind='image' AND deleted IS NULL"), ("live_link_url", "items(normalized) WHERE kind='link' AND deleted IS NULL")] {
+            let current = try db.rows("SELECT sql FROM sqlite_master WHERE type='index' AND name=?", [.text(name)]).first?["sql"]?.string
+            guard current != "CREATE INDEX \(name) ON \(definition)" else { continue }
+            try db.execute("DROP INDEX IF EXISTS \(name)"); try db.execute("CREATE INDEX \(name) ON \(definition)")
+        }
         if try !db.rows("PRAGMA table_info(text_identity)").contains(where: { $0["name"]?.string == "version" }) {
             try db.execute("ALTER TABLE text_identity ADD COLUMN version INTEGER NOT NULL DEFAULT 1")
         }
@@ -491,9 +500,10 @@ extension String {
         try db.backup(to: backup.appendingPathComponent("library-after-migration.sqlite"))
     }
     private static func textDigest(_ text: String) -> Data { Data(SHA256.hash(data: Data(TextIdentity.key(text).utf8))) }
-    private func putTextIdentity(_ item: LibraryRecord) throws {
+    /// `digest` is the caller's digest of this item's text when it already has one.
+    private func putTextIdentity(_ item: LibraryRecord, digest: Data? = nil) throws {
         if item.kind == .text, let text = item.text {
-            try db.execute("INSERT INTO text_identity(item,digest,captured,version) VALUES(?,?,?,?) ON CONFLICT(item) DO UPDATE SET digest=excluded.digest,captured=excluded.captured,version=excluded.version", [.text(item.id.uuidString), .blob(Self.textDigest(text)), .real((item.lastCapturedAt ?? item.createdAt).timeIntervalSince1970), .integer(TextIdentity.version)])
+            try db.execute("INSERT INTO text_identity(item,digest,captured,version) VALUES(?,?,?,?) ON CONFLICT(item) DO UPDATE SET digest=excluded.digest,captured=excluded.captured,version=excluded.version", [.text(item.id.uuidString), .blob(digest ?? Self.textDigest(text)), .real((item.lastCapturedAt ?? item.createdAt).timeIntervalSince1970), .integer(TextIdentity.version)])
         } else {
             try db.execute("DELETE FROM text_identity WHERE item=?", [.text(item.id.uuidString)])
         }
@@ -512,6 +522,13 @@ extension String {
         textIdentityDataVersion = observedVersion
     }
     private func repairTextIdentity() throws {
+        // Identity rows exist only for text items, so equal counts mean none
+        // is missing or outdated. Three counts replace a read of every text
+        // item each time another connection has written anything at all.
+        if let counts = try db.rows("SELECT (SELECT count(*) FROM items WHERE kind='text') AS texts,(SELECT count(*) FROM text_identity) AS identities,(SELECT count(*) FROM text_identity WHERE version=?) AS current", [.integer(TextIdentity.version)]).first,
+           let texts = counts["texts"]?.number, texts == counts["identities"]?.number, texts == counts["current"]?.number {
+            try db.execute("INSERT OR IGNORE INTO metadata(key,value) VALUES('text-identity-v2','complete')"); return
+        }
         var cursor = ""
         while true {
             let rows = try db.rows("SELECT i.id FROM items i LEFT JOIN text_identity t ON t.item=i.id WHERE i.kind='text' AND (t.item IS NULL OR t.version<>?) AND i.id>? ORDER BY i.id LIMIT 256", [.integer(TextIdentity.version), .text(cursor)])
@@ -524,19 +541,20 @@ extension String {
         }
         try db.execute("INSERT OR IGNORE INTO metadata(key,value) VALUES('text-identity-v2','complete')")
     }
-    private func put(_ item: LibraryRecord) throws {
+    private func put(_ item: LibraryRecord, textDigest: Data? = nil) throws {
         let tagNames = try tags(for: item.id).map(\.name).joined(separator: " ")
         // A personal label supplements the recognizable source filename.
         // Index its basename only; private directory names are not content.
         let imageName = item.kind == .image ? (item.originalPath.map { URL(fileURLWithPath: $0).lastPathComponent } ?? item.fileURL?.lastPathComponent ?? "") : ""
-        let content = [item.displayTitle,imageName,item.metadataTitle ?? "",item.text ?? "",item.note,item.originalURL ?? "",tagNames].joined(separator: " ").libraryFolded
+        let title = item.displayTitle
+        let content = [title,imageName,item.metadataTitle ?? "",item.text ?? "",item.note,item.originalURL ?? "",tagNames].joined(separator: " ").libraryFolded
         try db.execute("INSERT INTO items VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET kind=excluded.kind,created=excluded.created,updated=excluded.updated,copied=excluded.copied,retained=excluded.retained,favorite=excluded.favorite,shelf=excluded.shelf,deleted=excluded.deleted,path=excluded.path,normalized=excluded.normalized,domain=excluded.domain,sort_title=excluded.sort_title,search=excluded.search,payload=excluded.payload", [
             .text(item.id.uuidString), .text(item.kind.rawValue), .real(item.createdAt.timeIntervalSince1970), .real(item.updatedAt.timeIntervalSince1970),
             item.lastCopiedAt.map { .real($0.timeIntervalSince1970) } ?? .null, item.retainedAt.map { .real($0.timeIntervalSince1970) } ?? .null,
             .integer(item.favorite ? 1 : 0), .integer(item.onShelf ? 1 : 0), item.deletedAt.map { .real($0.timeIntervalSince1970) } ?? .null,
             item.path.map(SQLValue.text) ?? .null, item.normalizedURL.map(SQLValue.text) ?? .null, .text(item.linkURL?.host?.lowercased() ?? ""),
-            .text(item.displayTitle.libraryFolded), .text(content), .blob(try JSONEncoder().encode(item))])
-        try putTextIdentity(item)
+            .text(title.libraryFolded), .text(content), .blob(try JSONEncoder().encode(item))])
+        try putTextIdentity(item, digest: textDigest)
         if let source = item.source {
             try db.execute("INSERT INTO item_source(item,bundle,name) VALUES(?,?,?) ON CONFLICT(item) DO UPDATE SET bundle=excluded.bundle,name=excluded.name", [.text(item.id.uuidString), .text(source.bundleID), .text(source.name)])
         } else {
@@ -663,7 +681,8 @@ extension String {
         try db.transaction { try put(record) }; changed(); return record
     }
     @discardableResult func captureImage(_ url: URL, capturedAt: Date? = nil, source: SourceApp? = nil) throws -> LibraryRecord {
-        if let existing = try LibrarySQL.decode(db.rows("SELECT payload FROM items WHERE path=? AND deleted IS NULL", [.text(url.standardizedFileURL.path)])).first { return existing }
+        // Naming the kind lets the partial index answer; without it every item was read.
+        if let existing = try LibrarySQL.decode(db.rows("SELECT payload FROM items INDEXED BY live_image_path WHERE kind='image' AND path=? AND deleted IS NULL", [.text(url.standardizedFileURL.path)])).first { return existing }
         guard files.isRegularFile(url) else { throw HistoryFiles.Failure.unsafeFile }
         let date = capturedAt ?? now(); var item = LibraryRecord(id: UUID(), kind: .image, createdAt: date, updatedAt: date); item.path = url.standardizedFileURL.path; item.captureRevision = UUID()
         item.source = source
@@ -683,9 +702,9 @@ extension String {
             // A rollback app can insert or edit while this app stays open.
             // Repair only after another connection writes, not on every copy.
             if observedVersion != textIdentityDataVersion { try repairTextIdentity() }
-            let identity = TextIdentity.key(text)
+            let identity = TextIdentity.key(text), digest = Data(SHA256.hash(data: Data(identity.utf8)))
             // The index narrows the read; verify the normalized candidate too.
-            let rows = try db.rows("SELECT i.id FROM text_identity t JOIN items i ON i.id=t.item WHERE t.digest=? AND i.kind='text' AND i.deleted IS NULL ORDER BY i.created DESC,i.rowid DESC", [.blob(Self.textDigest(text))])
+            let rows = try db.rows("SELECT i.id FROM text_identity t JOIN items i ON i.id=t.item WHERE t.digest=? AND i.kind='text' AND i.deleted IS NULL ORDER BY i.created DESC,i.rowid DESC", [.blob(digest)])
             var canonical: LibraryRecord?
             for row in rows {
                 guard let id = row["id"]?.string.flatMap(UUID.init(uuidString:)), var duplicate = try item(id) else { throw HistoryFiles.Failure.unsafeFile }
@@ -721,7 +740,8 @@ extension String {
             result.lastCapturedAt = date; result.lastCopiedAt = date; result.onShelf = true
             result.captureRevision = UUID()
             if let source { result.source = source }
-            try put(result)
+            // `result.text` is `text`, whose identity was computed above.
+            try put(result, textDigest: digest)
             affected.append(result.id)
             return result
         } } catch {
@@ -738,7 +758,7 @@ extension String {
     }
     @discardableResult func captureLink(_ url: URL, source: SourceApp? = nil) throws -> LibraryRecord {
         guard let normalized = LinkIdentity.normalized(url) else { throw HistoryFiles.Failure.unsafeFile }
-        if var item = try LibrarySQL.decode(db.rows("SELECT payload FROM items WHERE normalized=? AND deleted IS NULL ORDER BY created DESC,rowid DESC LIMIT 1", [.text(normalized)])).first {
+        if var item = try LibrarySQL.decode(db.rows("SELECT payload FROM items INDEXED BY live_link_url WHERE kind='link' AND normalized=? AND deleted IS NULL ORDER BY created DESC,rowid DESC LIMIT 1", [.text(normalized)])).first {
             item.onShelf = true; item.updatedAt = now(); item.lastCopiedAt = now(); item.lastCapturedAt = now(); item.captureRevision = UUID()
             if let source { item.source = source }
             try db.transaction { try put(item) }; changed([item.id]); return item
@@ -1374,8 +1394,20 @@ extension String {
     }
     private func changed(_ ids: [UUID] = []) {
         changedIDs = Set(ids)
-        changedKinds = ids.isEmpty ? Set(LibraryKind.allCases) : Set(ids.compactMap { try? item($0)?.kind })
+        changedKinds = ids.isEmpty ? Set(LibraryKind.allCases) : kinds(of: ids)
         revision += 1
+    }
+    /// The kinds among `ids`, read from the kind column in one query per few
+    /// hundred items instead of decoding each item's whole record. If that
+    /// cannot be read, every kind is reported so no shelf misses the change.
+    private func kinds(of ids: [UUID]) -> Set<LibraryKind> {
+        var result = Set<LibraryKind>(), start = 0
+        while start < ids.count {
+            let batch = ids[start..<min(ids.count, start + 500)]; start += 500
+            guard let rows = try? db.rows("SELECT DISTINCT kind FROM items WHERE id IN (" + batch.map { _ in "?" }.joined(separator: ",") + ")", batch.map { .text($0.uuidString) }) else { return Set(LibraryKind.allCases) }
+            result.formUnion(rows.compactMap { $0["kind"]?.string.flatMap(LibraryKind.init(rawValue:)) })
+        }
+        return result
     }
     /// Used by local import and large synthetic fixtures. One transaction and
     /// one publication keep the UI from re-reading every intermediate record.

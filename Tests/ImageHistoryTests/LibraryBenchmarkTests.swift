@@ -34,8 +34,56 @@
             for size in request.split(separator: ",").compactMap({ Int($0) }) where size > 0 { try run(size) }
         }
 
+        /// What the first launch after an update costs a library written by the
+        /// previous build: SHELF_LIBRARY_UPGRADE_BENCHMARK names its size.
+        func testUpgradeBenchmark() throws {
+            guard let request = ProcessInfo.processInfo.environment["SHELF_LIBRARY_UPGRADE_BENCHMARK"], let size = Int(request), size > 0
+            else {
+                throw XCTSkip("Set SHELF_LIBRARY_UPGRADE_BENCHMARK to a library size, for example 50000")
+            }
+            let f = try SyntheticFixture()
+            defer { f.cleanup() }
+            f.date = Date(timeIntervalSince1970: 1_800_000_000)
+            let records = try SyntheticLibraryCorpus.records(count: size, seed: 0x5E1F, inbox: f.inbox, end: f.date)
+            let url = try PreviousLibrary.make(f, records: records)
+            _ = try? LibraryDatabase(url: url, verify: false).rows("PRAGMA wal_checkpoint(TRUNCATE)")
+            let before = megabytes(url)
+            var opening = Samples()
+            let library = try opening.measure {
+                try LibraryStore(defaults: f.defaults, inbox: f.inbox, now: { f.date }, moveToTrash: fixtureTrash(f.folder))
+            }
+            let snapshot = library.snapshots.all().first.map(megabytes) ?? 0
+            // Saves on the calling thread while the background work holds the write lock in steps.
+            var saves = Samples()
+            var generator = SeededGenerator(seed: 0x0C12)
+            let start = DispatchTime.now().uptimeNanoseconds
+            while library.searchIndexComplete != true, saves.values.count < 20_000 {
+                f.date.addTimeInterval(1)
+                let text = "during upgrade \(saves.values.count) " + SyntheticLibraryCorpus.text(&generator, bytes: 80)
+                _ = try saves.measure { try library.captureText(text) }
+                Thread.sleep(forTimeInterval: 0.05)
+            }
+            let indexed = Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000_000
+            library.waitForMaintenance()
+            let finished = Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000_000
+            print(
+                """
+
+                ## Upgrade benchmark: \(size) items written by the previous build
+
+                | measurement | p50 ms | p95 ms | max ms | note |
+                |---|---|---|---|---|
+                | first open, with snapshot | \(opening.row) | \(String(format: "%.1f MB snapshot", snapshot)) |
+                | save a short text during the upgrade | \(saves.row) | \(saves.values.count) saves |
+
+                Index complete after \(String(format: "%.1f", indexed)) s, all background work after \(String(format: "%.1f", finished)) s.
+                Database file: \(String(format: "%.1f MB before, %.1f MB after", before, megabytes(url)))
+                """)
+        }
+
         private func megabytes(_ url: URL) -> Double {
-            Double((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0) / 1_048_576
+            // Asked of the file system each time; a URL remembers an earlier answer.
+            Double(((try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? NSNumber)?.intValue ?? 0) / 1_048_576
         }
 
         private func run(_ size: Int) throws {

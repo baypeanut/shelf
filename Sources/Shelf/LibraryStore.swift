@@ -187,6 +187,7 @@ extension String {
     let databaseURL: URL
     let defaults: UserDefaults
     let files: HistoryFiles
+    let snapshots: LibrarySnapshots
     private let db: LibraryDatabase
     private var textIdentityDataVersion: Int64?
     private let now: () -> Date
@@ -224,6 +225,7 @@ extension String {
         self.defaults = defaults; self.now = now; files = HistoryFiles(inbox: inbox, moveToTrash: moveToTrash)
         root = inbox.appendingPathComponent("Library", isDirectory: true).standardizedFileURL
         databaseURL = root.appendingPathComponent("library.sqlite")
+        snapshots = LibrarySnapshots(root: root)
         guard root.resolvingSymlinksInPath().path == root.path else { throw HistoryFiles.Failure.unsafeFile }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: root.path)
@@ -965,6 +967,8 @@ extension String {
         if let days = HistoryRetention.trashDays(defaults: defaults) {
             try purgeTrash(olderThan: now().addingTimeInterval(-Double(days) * 86400))
         }
+        // A snapshot still holds what was purged above, but only for its week.
+        snapshots.expire(now: now())
     }
     func trashCount(olderThan cutoff: Date = .distantFuture) throws -> Int {
         Int(try db.rows("SELECT count(*) AS n FROM items WHERE deleted IS NOT NULL AND deleted<=?", [.real(cutoff.timeIntervalSince1970)]).first?["n"]?.number ?? 0)
@@ -1041,6 +1045,9 @@ extension String {
     /// confirmation appeared is kept.
     @discardableResult func emptyTrash(asOf date: Date = .distantFuture) throws -> [UUID] {
         let ids = try purgeTrash(olderThan: date)
+        // A snapshot would keep what was just deleted; an explicit Empty Trash
+        // does not wait for it to expire.
+        snapshots.removeAll()
         if !ids.isEmpty { compact() }
         return ids
     }
@@ -1165,6 +1172,8 @@ extension String {
         try db.transaction { try db.execute("UPDATE tags SET name=?,folded=? WHERE id=?", [.text(name), .text(name.libraryFolded), .text(id.uuidString)]); for id in affected { if let value = try item(id) { try put(value) } } }; changed()
     }
     func backup(to url: URL) throws { try db.backup(to: url) }
+    /// A dated standalone copy of the database as it is now. See `LibrarySnapshots`.
+    @discardableResult func makeSnapshot() throws -> URL { try snapshots.make(of: db, at: now()) }
     func writePrivate(_ data: Data, to url: URL) throws {
         guard url.deletingLastPathComponent().resolvingSymlinksInPath().path == url.deletingLastPathComponent().standardizedFileURL.path,
               !FileManager.default.fileExists(atPath: url.path) || url.resolvingSymlinksInPath().path == url.standardizedFileURL.path else { throw HistoryFiles.Failure.unsafeFile }

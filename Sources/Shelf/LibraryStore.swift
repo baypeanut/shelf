@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import CryptoKit
 import Darwin
+import SQLite3
 
 enum LibraryKind: String, Codable, CaseIterable { case image, text, link }
 /// Capture versions protect a recopy that reuses a deduplicated identity.
@@ -246,10 +247,27 @@ extension String {
     func retentionDays(for kind: LibraryKind) -> Int { HistoryRetention.days(kind, defaults: defaults) }
     var thumbnailsFolder: URL { root.appendingPathComponent("Thumbnails", isDirectory: true) }
 
+    /// Whether the database has passed its integrity check.
+    enum Integrity: Equatable { case verified, checking, failed }
+    private(set) var integrity = Integrity.verified
+    /// Called once, on a later turn of the main loop, when a check that was
+    /// still running after launch fails. Every write is refused from then on.
+    var onIntegrityFailure: (() -> Void)?
+    private var integrityCheck: LibraryIntegrityCheck?
+    private var afterIntegrity = [() -> Void]()
+    private var maintainsInBackground = true
+    /// A database up to this size is checked before `init` returns, as every
+    /// database used to be. A larger one is checked on another thread, and
+    /// nothing is written to it until that check has passed.
+    nonisolated static let deferredIntegrityCheckBytes = 16 * 1024 * 1024
+    private static let integrityFailedKey = "libraryIntegrityCheckFailed"
+
     /// `backgroundMaintenance` is false only in tests that step through the
-    /// search index's catch-up themselves.
+    /// search index's catch-up themselves; `deferredIntegrityCheckBytes` is
+    /// lowered or raised only in tests of the integrity check.
     init(defaults: UserDefaults, inbox: URL, now: @escaping () -> Date = Date.init,
-         moveToTrash: @escaping (URL) throws -> URL = HistoryFiles.systemTrash, backgroundMaintenance: Bool = true) throws {
+         moveToTrash: @escaping (URL) throws -> URL = HistoryFiles.systemTrash, backgroundMaintenance: Bool = true,
+         deferredIntegrityCheckBytes: Int = LibraryStore.deferredIntegrityCheckBytes) throws {
         self.defaults = defaults; self.now = now; files = HistoryFiles(inbox: inbox, moveToTrash: moveToTrash)
         root = inbox.appendingPathComponent("Library", isDirectory: true).standardizedFileURL
         databaseURL = root.appendingPathComponent("library.sqlite")
@@ -260,13 +278,42 @@ extension String {
         if !FileManager.default.fileExists(atPath: databaseURL.path) {
             guard FileManager.default.createFile(atPath: databaseURL.path, contents: Data(), attributes: [.posixPermissions: 0o600]) else { throw HistoryFiles.Failure.unsafeFile }
         }
-        db = try LibraryDatabase(url: databaseURL)
+        maintainsInBackground = backgroundMaintenance
+        db = try LibraryDatabase(url: databaseURL, verify: false)
+        // The check may run later only for a database this build has already
+        // prepared, so that nothing has to be written before it passes, and
+        // never after an earlier check failed.
+        let size = ["", "-wal"].reduce(0) { $0 + (((try? FileManager.default.attributesOfItem(atPath: databaseURL.path + $1))?[.size] as? NSNumber)?.intValue ?? 0) }
+        let deferred = size > deferredIntegrityCheckBytes && !defaults.bool(forKey: Self.integrityFailedKey) && Self.isPrepared(db)
+        if !deferred {
+            try db.checkIntegrity()
+            if defaults.object(forKey: Self.integrityFailedKey) != nil { defaults.removeObject(forKey: Self.integrityFailedKey) }
+        }
         guard (try db.rows("PRAGMA user_version").first?["user_version"]?.number ?? 0) <= 1 else { throw HistoryFiles.Failure.unsafeFile }
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: databaseURL.path)
+        // Already in effect for a prepared database; neither writes to it.
         try db.execute("PRAGMA journal_mode=WAL")
         try db.execute("PRAGMA synchronous=FULL")
         // Content removed from Trash is overwritten rather than left in free pages.
         try db.execute("PRAGMA secure_delete=ON")
+        if deferred {
+            try loadSearchState()
+            checkIntegrityInBackground()
+        } else {
+            try finishOpening()
+        }
+    }
+    /// True when opening this database needs no write: this build created or
+    /// upgraded it and it is already in write-ahead mode.
+    private static func isPrepared(_ database: LibraryDatabase) -> Bool {
+        (try? database.rows("PRAGMA user_version").first?["user_version"]?.number) == 1
+            && (try? database.rows("PRAGMA journal_mode").first?.values.first?.string) == "wal"
+            && (try? LibrarySearchIndex.isInstalled(database)) == true
+            && (try? database.rows("SELECT 1 FROM metadata WHERE key='migration-v1'").isEmpty) == false
+    }
+    /// Everything `init` does that can write: the schema, the first import,
+    /// repairs after an older build, and the background work.
+    private func finishOpening() throws {
         let populated = try !db.rows("SELECT 1 FROM sqlite_master WHERE type='table' AND name='items'").isEmpty && !db.rows("SELECT 1 FROM items LIMIT 1").isEmpty
         for sql in [
             "CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL)",
@@ -312,14 +359,59 @@ extension String {
         try backfillTextIdentity()
         try db.execute("PRAGMA user_version=1")
         drainMarkupGarbage()
-        if backgroundMaintenance { startSearchMaintenance() }
+        if maintainsInBackground { startSearchMaintenance() }
     }
     deinit { searchStatus?.cancel() }
+    /// Runs the check on a connection of its own. Until it passes, the first
+    /// statement that would write waits for it, so nothing reaches a damaged
+    /// database that the check at launch would have kept out.
+    private func checkIntegrityInBackground() {
+        let check = LibraryIntegrityCheck(), url = databaseURL
+        integrityCheck = check; integrity = .checking
+        db.beforeWrite = { [unowned self] in try MainActor.assumeIsolated { try self.awaitIntegrity() } }
+        DispatchQueue.global(qos: .userInitiated).async {
+            check.finish((try? LibraryDatabase(url: url, readOnly: true, verify: true)) != nil)
+            Task { @MainActor [weak self] in self?.resolveIntegrity() }
+        }
+    }
+    private func awaitIntegrity() throws {
+        integrityCheck?.wait()
+        resolveIntegrity()
+        if integrity == .failed { throw LibraryDatabase.Failure(code: SQLITE_CORRUPT) }
+    }
+    private func resolveIntegrity() {
+        guard let check = integrityCheck, let passed = check.result else { return }
+        integrityCheck = nil; db.beforeWrite = nil
+        do {
+            // A failure seen from the other connection counts only once this one confirms it.
+            if !passed { try db.checkIntegrity() }
+            try finishOpening()
+            integrity = .verified
+            let waiting = afterIntegrity; afterIntegrity = []
+            for body in waiting { body() }
+        } catch {
+            integrity = .failed; afterIntegrity = []
+            db.beforeWrite = { throw LibraryDatabase.Failure(code: SQLITE_CORRUPT) }
+            // The next launch checks before it opens and enters recovery as it always has.
+            defaults.set(true, forKey: Self.integrityFailedKey)
+            DispatchQueue.main.async { [weak self] in self?.onIntegrityFailure?() }
+        }
+    }
+    /// Blocks until a check still running has finished, and returns the result.
+    @discardableResult func waitForIntegrityCheck() -> Integrity {
+        integrityCheck?.wait()
+        resolveIntegrity()
+        return integrity
+    }
+    /// Runs `body` once the database has passed its check: now if it already
+    /// has, never if it fails. For work that writes on a connection of its own.
+    func afterIntegrityCheck(_ body: @escaping () -> Void) {
+        switch integrity { case .verified: body(); case .checking: afterIntegrity.append(body); case .failed: break }
+    }
     /// The first change to how an existing library is stored. A snapshot comes
     /// first; if it cannot be made, or the index cannot be created, nothing is
     /// changed, search keeps reading every item, and the next launch tries again.
     private func installSearchIndex(populated: Bool) throws {
-        legacySearchTable = try LibrarySearchIndex.hasLegacyTable(db)
         var installed = try LibrarySearchIndex.isInstalled(db)
         if !installed {
             do {
@@ -330,9 +422,14 @@ extension String {
                 installed = true
             } catch { log.error("The library search index was not created; the library is unchanged") }
         }
-        guard installed else { return }
+        try loadSearchState()
         // Only a shortcut; without it the old table is still kept clean, slowly.
-        if legacySearchTable { try? LibrarySearchIndex.indexLegacyTable(db) }
+        if installed, legacySearchTable { try? LibrarySearchIndex.indexLegacyTable(db) }
+    }
+    /// What this launch needs to know about search before it can read.
+    private func loadSearchState() throws {
+        legacySearchTable = try LibrarySearchIndex.hasLegacyTable(db)
+        guard searchStatus == nil, try LibrarySearchIndex.isInstalled(db) else { return }
         let status = LibrarySearchIndex.Status()
         if try LibrarySearchIndex.isComplete(db) { status.markComplete() }
         searchStatus = status

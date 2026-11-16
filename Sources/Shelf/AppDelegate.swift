@@ -22,7 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 #endif
     private let clipboardSource: (any ClipboardSource)?
     private let watchesFiles: Bool
-    private let startupError: String?
+    /// Set at launch when the library cannot be opened, or later when a large
+    /// library fails the integrity check that was still running after launch.
+    private var startupError: String?
     private let isolatedCopyBoard: NSPasteboard?
     private let ownsKeyboardFocus: @MainActor () -> Bool
     let capture: CaptureControl
@@ -256,7 +258,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setUpStatusItem()
         watchMenuBarClicks()
         if let store = line.library {
-            let search = LibraryImageSearch(store: store); imageSearch = search; store.imageSearch = search; search.start()
+            let search = LibraryImageSearch(store: store); imageSearch = search; store.imageSearch = search
+            // Recognized text is written on a connection of its own, so it
+            // waits for a library whose integrity check is still running.
+            store.afterIntegrityCheck { search.start() }
+            store.onIntegrityFailure = { [weak self] in self?.libraryFailedIntegrityCheck() }
         }
 
         line.onImageMarkupRequested = { [weak self] id in self?.showPreview(id); self?.preview?.beginMarkup() }
@@ -1001,6 +1007,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         if isRevealed { setRevealed(false, restoreApplication: false) }
         settingsController?.present()
+    }
+    /// The check that used to finish before launch failed after it. The store
+    /// already refuses every write; stop capturing, say so with the launch
+    /// failure's own alert, and leave the rest to recovery at the next launch.
+    private func libraryFailedIntegrityCheck() {
+        guard startupError == nil else { return }
+        startupError = L("Library could not be opened. Existing history is kept; capture is paused.")
+        clipboardWatcher.stop(); textWatcher.stop()
+        watcher?.stop(); safetyWatcher?.stop(); folderWatchers.forEach { $0.stop() }
+        historyTimer?.invalidate(); imageSearch?.stop(); metadataService?.stop()
+        if isRevealed { setRevealed(false, restoreApplication: false) }
+        showStartupFailure()
     }
     private func showStartupFailure() {
         guard let startupError else { return }

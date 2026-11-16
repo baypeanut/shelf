@@ -139,12 +139,17 @@
             _ = try? LibraryDatabase(url: databaseURL, verify: false).rows("PRAGMA wal_checkpoint(TRUNCATE)")
             var opening = Samples()
             var checking = Samples()
+            var settling = Samples()
             for _ in 0..<5 {
                 store = nil
                 store = try opening.measure { try open() }
+                // A large library is checked after it opens. This is the wait a
+                // write would have if it came immediately, plus the rest of opening.
+                settling.measure { _ = store?.waitForIntegrityCheck() }
             }
             for _ in 0..<3 { _ = try checking.measure { try LibraryDatabase(url: databaseURL, readOnly: true, verify: true) } }
             report("open the store (launch)", opening, "LibraryStore.init on the existing library")
+            report("finish opening after a deferred check", settling, "near zero when the check ran before opening")
             report("integrity check alone", checking, "a connection opened with the check")
             let library = try XCTUnwrap(store)
 

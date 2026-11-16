@@ -17,6 +17,10 @@ final class LibraryDatabase {
         var errorDescription: String? { L("Library could not be saved or opened") + " (\(code))" }
     }
     private var handle: OpaquePointer?
+    /// Runs before every statement that can change the database, and may
+    /// refuse it by throwing. The store uses it to hold writes back until an
+    /// integrity check that was moved off the launch path has passed.
+    var beforeWrite: (() throws -> Void)?
     private let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
     init(url: URL, readOnly: Bool = false, verify: Bool = true) throws {
         // macOS exposes /var temporary folders through a system symlink.
@@ -32,8 +36,11 @@ final class LibraryDatabase {
         sqlite3_busy_timeout(handle, 3000)
         do {
             try execute("PRAGMA foreign_keys=ON")
-            if verify { guard try rows("PRAGMA quick_check").first?.values.first?.string == "ok" else { throw Failure(code: SQLITE_CORRUPT) } }
+            if verify { try checkIntegrity() }
         } catch { sqlite3_close(handle); handle = nil; throw error }
+    }
+    func checkIntegrity() throws {
+        guard try rows("PRAGMA quick_check").first?.values.first?.string == "ok" else { throw Failure(code: SQLITE_CORRUPT) }
     }
     deinit { sqlite3_close(handle) }
     private func statement(_ sql: String, _ values: [SQLValue]) throws -> OpaquePointer {
@@ -55,6 +62,7 @@ final class LibraryDatabase {
         } catch { sqlite3_finalize(statement); throw error }
     }
     func execute(_ sql: String, _ values: [SQLValue] = []) throws {
+        try beforeWrite?()
         let statement = try statement(sql, values); defer { sqlite3_finalize(statement) }
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW { result = sqlite3_step(statement) }
@@ -83,6 +91,7 @@ final class LibraryDatabase {
         return rows
     }
     func transaction<T>(_ body: () throws -> T) throws -> T {
+        try beforeWrite?()
         try execute("BEGIN IMMEDIATE")
         do { let result = try body(); try execute("COMMIT"); return result }
         catch { try? execute("ROLLBACK"); throw error }

@@ -64,8 +64,8 @@ import Combine
             if entries != values { entries = values; sanitize() }
         } catch { notice = error.localizedDescription }
     }
-    @discardableResult func add(_ url: URL) -> LibraryRecord? {
-        do { let value = try store?.captureLink(url); scrollOffset = 0; return value }
+    @discardableResult func add(_ url: URL, source: SourceApp? = nil) -> LibraryRecord? {
+        do { let value = try store?.captureLink(url, source: source); scrollOffset = 0; return value }
         catch { notice = error.localizedDescription; return nil }
     }
     func setFavoritesOnly(_ value: Bool) { favoritesOnly = value; scrollOffset = 0; cancelSelection() }

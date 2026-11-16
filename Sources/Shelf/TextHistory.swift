@@ -107,8 +107,8 @@ final class TextHistory: ObservableObject {
 
     private func safeFolder() -> Bool { folder.resolvingSymlinksInPath().path == folder.path }
     @discardableResult
-    func add(_ text: String) -> Bool {
-        if let library { do { guard try library.captureText(text) != nil else { return false }; scrollOffset = 0; return true } catch { notice = error.localizedDescription; return false } }
+    func add(_ text: String, source: SourceApp? = nil) -> Bool {
+        if let library { do { guard try library.captureText(text, source: source) != nil else { return false }; scrollOffset = 0; return true } catch { notice = error.localizedDescription; return false } }
         guard writable, !text.isEmpty, text.utf8.count <= TextClipboardWatcher.maximumDataBytes else { return false }
         let identity = TextIdentity.key(text)
         let matching = entries.filter { TextIdentity.key($0.text).utf8.elementsEqual(identity.utf8) }

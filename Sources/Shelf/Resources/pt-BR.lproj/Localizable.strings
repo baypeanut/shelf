@@ -407,5 +407,6 @@
 "Items in Trash" = "Itens no Lixo";
 "Keep until Trash is emptied" = "Manter até esvaziar o Lixo";
 "Items kept in Trash longer than this are permanently deleted." = "Os itens que ficarem no Lixo por mais tempo são apagados definitivamente.";
+"Copied from %@" = "Copiado de %@";
 "Copies made in this app will not be captured." = "As cópias feitas neste app não serão capturadas.";
 "Ignore" = "Ignorar";

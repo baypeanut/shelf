@@ -887,12 +887,12 @@ final class Line: ObservableObject {
     // MARK: Hanging and dropping
 
     @discardableResult
-    func hang(_ url: URL, quietly: Bool = false, flying: Bool = false) -> UUID? {
+    func hang(_ url: URL, quietly: Bool = false, flying: Bool = false, source: SourceApp? = nil) -> UUID? {
         guard !items.contains(where: { $0.url == url && !$0.falling }),
               let thumb = makeThumbnail(url) else { return nil }
         if let library {
             do {
-                let record = try library.captureImage(url)
+                let record = try library.captureImage(url, source: source)
                 thumbnails.seed(thumb, url: url, pixels: Int(320 * size.scale)); arrivalIDs.insert(record.id)
                 if let index = items.firstIndex(where: { $0.id == record.id }) { items[index].thumb = thumb; items[index].flying = flying }
                 setScrollOffset(0); if !quietly { play("Tink", volume: 0.35) }; return record.id

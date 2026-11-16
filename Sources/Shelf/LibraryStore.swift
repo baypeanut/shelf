@@ -45,6 +45,17 @@ struct LibraryRecord: Codable, Equatable, Identifiable {
     var author: String?
     var metadataState = "pending"
     var metadataAttemptedAt: Date?
+    /// The application the latest capture came from. Optional: records made
+    /// before sources were recorded, screenshots and unattributed copies have
+    /// none, and unrelated edits preserve the value.
+    var sourceBundleID: String?
+    var sourceName: String?
+    var source: SourceApp? {
+        get { sourceBundleID.map { SourceApp(bundleID: $0, name: sourceName ?? $0) } }
+        set { sourceBundleID = newValue?.bundleID; sourceName = newValue?.name }
+    }
+    /// The one line that names a recorded source wherever details are listed.
+    var sourceCaption: String? { source.map { String(format: L("Copied from %@"), $0.name) } }
     var displayTitle: String {
         if !title.isEmpty { return title }
         if kind == .link, let metadataTitle, !metadataTitle.isEmpty { return metadataTitle }
@@ -83,8 +94,10 @@ struct LibraryQuery: Equatable {
     var tagIDs = Set<UUID>()
     var days: Int?
     var domain = ""
+    /// A source application's bundle identifier; empty matches every item.
+    var sourceBundleID = ""
     var sort: Sort = .newest
-    var hasFilters: Bool { kind != nil || !search.isEmpty || searchMode != .all || favoritesOnly || !tagIDs.isEmpty || days != nil || !domain.isEmpty }
+    var hasFilters: Bool { kind != nil || !search.isEmpty || searchMode != .all || favoritesOnly || !tagIDs.isEmpty || days != nil || !domain.isEmpty || !sourceBundleID.isEmpty }
 }
 
 private enum LibrarySQL {
@@ -114,6 +127,9 @@ private enum LibrarySQL {
             // suffix collisions (youtube.com must not match notyoutube.com).
             whereParts.append("(i.domain=? OR substr(i.domain,-length(?))=?)")
             values += [.text(domain), .text(suffix), .text(suffix)]
+        }
+        if !query.sourceBundleID.isEmpty {
+            whereParts.append("EXISTS(SELECT 1 FROM item_source s WHERE s.item=i.id AND s.bundle=?)"); values.append(.text(query.sourceBundleID))
         }
         // Bound literal substring search handles Turkish, short strings, CJK
         // and punctuation. The FTS index also supports future ranked searches.
@@ -244,6 +260,13 @@ extension String {
             // An older rollback app knows nothing about this index. Its text
             // edits must invalidate old digests; startup repairs missing rows.
             "CREATE TRIGGER IF NOT EXISTS text_identity_payload_changed AFTER UPDATE OF payload ON items BEGIN DELETE FROM text_identity WHERE item=NEW.id; END",
+            // The source application lives in the payload; this derived index
+            // only serves the Library's source filter. Like text_identity it
+            // keeps the items schema unchanged for an older rollback app, whose
+            // payload edits drop the source and must drop its index row too.
+            "CREATE TABLE IF NOT EXISTS item_source(item TEXT PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,bundle TEXT NOT NULL COLLATE NOCASE,name TEXT NOT NULL)",
+            "CREATE INDEX IF NOT EXISTS item_source_bundle ON item_source(bundle)",
+            "CREATE TRIGGER IF NOT EXISTS item_source_payload_changed AFTER UPDATE OF payload ON items BEGIN DELETE FROM item_source WHERE item=NEW.id; END",
             "CREATE VIRTUAL TABLE IF NOT EXISTS search_fts USING fts5(id UNINDEXED,content,tokenize='unicode61')",
             "CREATE TABLE IF NOT EXISTS image_analysis(item TEXT PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,path TEXT NOT NULL,fingerprint TEXT NOT NULL,version TEXT NOT NULL,content TEXT NOT NULL,ocr TEXT NOT NULL,vectors BLOB NOT NULL)",
             // Durable intent also covers a crash between creating a new PNG
@@ -346,6 +369,11 @@ extension String {
             item.path.map(SQLValue.text) ?? .null, item.normalizedURL.map(SQLValue.text) ?? .null, .text(item.linkURL?.host?.lowercased() ?? ""),
             .text(item.displayTitle.libraryFolded), .text(content), .blob(try JSONEncoder().encode(item))])
         try putTextIdentity(item)
+        if let source = item.source {
+            try db.execute("INSERT INTO item_source(item,bundle,name) VALUES(?,?,?) ON CONFLICT(item) DO UPDATE SET bundle=excluded.bundle,name=excluded.name", [.text(item.id.uuidString), .text(source.bundleID), .text(source.name)])
+        } else {
+            try db.execute("DELETE FROM item_source WHERE item=?", [.text(item.id.uuidString)])
+        }
         try db.execute("DELETE FROM search_fts WHERE id=?", [.text(item.id.uuidString)])
         try db.execute("INSERT INTO search_fts(id,content) VALUES(?,?)", [.text(item.id.uuidString), .text(content)])
     }
@@ -443,18 +471,29 @@ extension String {
         imageSearch.resolve(query, completion: completion)
     }
     func imageSearchChanged() { searchRevision += 1 }
+    /// The applications live items were copied from, for the source filter.
+    /// Each carries the name recorded with its newest item.
+    func sourceApps() throws -> [SourceApp] {
+        try db.rows("SELECT s.bundle,s.name,max(i.created) AS newest FROM item_source s JOIN items i ON i.id=s.item WHERE i.deleted IS NULL GROUP BY s.bundle").compactMap { row in
+            guard let bundleID = row["bundle"]?.string, let name = row["name"]?.string else { return nil }
+            return SourceApp(bundleID: bundleID, name: name)
+        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
     @discardableResult func createNote() throws -> LibraryRecord {
         let date = now(); var record = LibraryRecord(id: UUID(), kind: .text, createdAt: date, updatedAt: date)
         record.text = ""; record.retainedAt = date; record.title = L("Untitled note")
         try db.transaction { try put(record) }; changed(); return record
     }
-    @discardableResult func captureImage(_ url: URL, capturedAt: Date? = nil) throws -> LibraryRecord {
+    @discardableResult func captureImage(_ url: URL, capturedAt: Date? = nil, source: SourceApp? = nil) throws -> LibraryRecord {
         if let existing = try LibrarySQL.decode(db.rows("SELECT payload FROM items WHERE path=? AND deleted IS NULL", [.text(url.standardizedFileURL.path)])).first { return existing }
         guard files.isRegularFile(url) else { throw HistoryFiles.Failure.unsafeFile }
         let date = capturedAt ?? now(); var item = LibraryRecord(id: UUID(), kind: .image, createdAt: date, updatedAt: date); item.path = url.standardizedFileURL.path; item.captureRevision = UUID()
+        item.source = source
         try db.transaction { try put(item) }; changed([item.id]); return item
     }
-    @discardableResult func captureText(_ text: String) throws -> LibraryRecord? {
+    /// A recopy records its new source; one without a known source keeps the
+    /// earlier attribution.
+    @discardableResult func captureText(_ text: String, source: SourceApp? = nil) throws -> LibraryRecord? {
         guard !text.isEmpty, text.utf8.count <= TextClipboardWatcher.maximumDataBytes else { throw HistoryFiles.Failure.unsafeFile }
         let date = now()
         var affected = [UUID]()
@@ -503,6 +542,7 @@ extension String {
             result.text = text; result.createdAt = orderedDate; result.updatedAt = date
             result.lastCapturedAt = date; result.lastCopiedAt = date; result.onShelf = true
             result.captureRevision = UUID()
+            if let source { result.source = source }
             try put(result)
             affected.append(result.id)
             return result
@@ -518,14 +558,15 @@ extension String {
         changed(affected)
         return captured
     }
-    @discardableResult func captureLink(_ url: URL) throws -> LibraryRecord {
+    @discardableResult func captureLink(_ url: URL, source: SourceApp? = nil) throws -> LibraryRecord {
         guard let normalized = LinkIdentity.normalized(url) else { throw HistoryFiles.Failure.unsafeFile }
         if var item = try LibrarySQL.decode(db.rows("SELECT payload FROM items WHERE normalized=? AND deleted IS NULL ORDER BY created DESC,rowid DESC LIMIT 1", [.text(normalized)])).first {
             item.onShelf = true; item.updatedAt = now(); item.lastCopiedAt = now(); item.lastCapturedAt = now(); item.captureRevision = UUID()
+            if let source { item.source = source }
             try db.transaction { try put(item) }; changed([item.id]); return item
         }
         let date = now(); var item = LibraryRecord(id: UUID(), kind: .link, createdAt: date, updatedAt: date)
-        item.originalURL = url.absoluteString; item.normalizedURL = normalized; item.lastCapturedAt = date; item.captureRevision = UUID()
+        item.originalURL = url.absoluteString; item.normalizedURL = normalized; item.lastCapturedAt = date; item.captureRevision = UUID(); item.source = source
         try db.transaction { try put(item) }; changed([item.id]); return item
     }
     /// Returns the private copy it made, if any, so a caller whose write then

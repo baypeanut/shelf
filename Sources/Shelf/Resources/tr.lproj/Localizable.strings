@@ -407,5 +407,6 @@
 "Items in Trash" = "Çöp’teki içerikler";
 "Keep until Trash is emptied" = "Çöp boşaltılana kadar tut";
 "Items kept in Trash longer than this are permanently deleted." = "Çöp’te bundan uzun süre kalan içerikler kalıcı olarak silinir.";
+"Copied from %@" = "%@ uygulamasından kopyalandı";
 "Copies made in this app will not be captured." = "Bu uygulamada yapılan kopyalar yakalanmayacak.";
 "Ignore" = "Yok say";

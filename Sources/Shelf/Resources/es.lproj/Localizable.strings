@@ -407,5 +407,6 @@
 "Items in Trash" = "Elementos en la Papelera";
 "Keep until Trash is emptied" = "Conservar hasta vaciar la Papelera";
 "Items kept in Trash longer than this are permanently deleted." = "Los elementos que lleven más tiempo en la Papelera se eliminan definitivamente.";
+"Copied from %@" = "Copiado desde %@";
 "Copies made in this app will not be captured." = "Las copias hechas en esta app no se capturarán.";
 "Ignore" = "Ignorar";

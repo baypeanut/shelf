@@ -407,5 +407,6 @@
 "Items in Trash" = "Éléments dans la corbeille";
 "Keep until Trash is emptied" = "Conserver jusqu’au vidage de la corbeille";
 "Items kept in Trash longer than this are permanently deleted." = "Les éléments restés plus longtemps dans la corbeille sont supprimés définitivement.";
+"Copied from %@" = "Copié depuis %@";
 "Copies made in this app will not be captured." = "Les copies faites dans cette app ne seront pas capturées.";
 "Ignore" = "Ignorer";

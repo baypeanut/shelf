@@ -276,18 +276,18 @@ private struct LibraryCard: View {
         Group {
             if let record {
                 if list {
-                    HStack(spacing: 14) { media(record).frame(width: 96, height: 64).clipShape(RoundedRectangle(cornerRadius: 8)); title(record).padding(.trailing, 68); Spacer() }.padding(10)
+                    HStack(spacing: 14) { media(record).frame(width: 96, height: 64).clipShape(RoundedRectangle(cornerRadius: ShelfTheme.Radius.control)); title(record).padding(.trailing, 68); Spacer() }.padding(10)
                 } else {
                     VStack(alignment: .leading, spacing: 12) {
-                        media(record).frame(maxWidth: .infinity).frame(height: 120).clipped().clipShape(RoundedRectangle(cornerRadius: 10))
+                        media(record).frame(maxWidth: .infinity).frame(height: 120).clipped().clipShape(RoundedRectangle(cornerRadius: ShelfTheme.Radius.control))
                         title(record)
                     }.padding(12)
                 }
             } else { ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity) }
         }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(selected ? Color.accentColor.opacity(0.07) : Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(selected ? Color.accentColor : Color(nsColor: .separatorColor).opacity(hovering ? 0.9 : 0.5), lineWidth: selected ? 2 : 0.5))
-            .overlay(alignment: .bottomTrailing) { if copied { Label(L("Copied"), systemImage: "checkmark").font(.caption.bold()).padding(6).background(.regularMaterial, in: Capsule()).padding(7) } }
+            .background(ShelfTheme.card, in: RoundedRectangle(cornerRadius: ShelfTheme.Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: ShelfTheme.Radius.card, style: .continuous).strokeBorder(selected ? ShelfTheme.accent : ShelfTheme.hairline, lineWidth: selected ? 2 : ShelfTheme.hairlineWidth))
+            .overlay(alignment: .bottomTrailing) { if copied { Label(L("Copied"), systemImage: "checkmark").font(.caption.weight(.medium)).padding(.horizontal, 8).padding(.vertical, 4).shelfBadge(RoundedRectangle(cornerRadius: ShelfTheme.Radius.control)).padding(7) } }
             .onHover { hovering = $0 }
             // Native mouse handling selects immediately and starts a real,
             // multi-item file drag; a SwiftUI tap swallowed collection drags.
@@ -297,11 +297,11 @@ private struct LibraryCard: View {
     }
     @ViewBuilder private func media(_ record: LibraryRecord) -> some View {
         ZStack(alignment: .topLeading) {
-            theme.wash(shelf)
+            Color(nsColor: .quaternaryLabelColor).opacity(0.5)
             if let image { Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: .infinity) }
             else if record.kind == .text {
                 Text(record.text ?? "").font(.system(size: list ? 10 : 13)).lineLimit(list ? 3 : 6).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding(12)
-            } else { Image(systemName: shelf.icon).font(.system(size: 30, weight: .light)).foregroundStyle(theme.accent(shelf)).frame(maxWidth: .infinity, maxHeight: .infinity) }
+            } else { Image(systemName: shelf.icon).font(.system(size: 28)).foregroundStyle(.tertiary).frame(maxWidth: .infinity, maxHeight: .infinity) }
         }
     }
     private func title(_ record: LibraryRecord) -> some View {
@@ -316,6 +316,6 @@ private struct LibraryCard: View {
         HStack(spacing: 4) {
             Button(action: onCopy) { Image(systemName: "doc.on.doc").frame(width: 23, height: 23) }.help(L("Copy") + " · " + keyboardBindings.title(.copy))
             Button(action: onPin) { Image(systemName: record.favorite ? "pin.fill" : "pin").foregroundStyle(record.favorite ? Color.accentColor : Color.primary).frame(width: 23, height: 23) }.help(L("Pin favorite") + " · " + keyboardBindings.title(.pin))
-        }.buttonStyle(.plain).padding(4).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 7)).opacity(hovering || focused ? 1 : 0).allowsHitTesting(hovering || focused)
+        }.buttonStyle(.plain).padding(2).shelfBadge(RoundedRectangle(cornerRadius: ShelfTheme.Radius.control)).opacity(hovering || focused ? 1 : 0).allowsHitTesting(hovering || focused)
     }
 }

@@ -28,7 +28,6 @@
 "Clipboard" = "Pano";
 "Close" = "Kapat";
 "Close preview" = "Önizlemeyi kapat";
-"Colors" = "Renkler";
 "Contacts the linked website or YouTube in the background. Private markers, local addresses and links with known secret parameters are skipped." = "Arka planda ilgili siteye veya YouTube’a bağlanır. Özel işaretli içerikler, yerel adresler ve bilinen gizli parametreleri taşıyan linkler atlanır.";
 "Content type" = "İçerik türü";
 "Copied" = "Kopyalandı";
@@ -101,7 +100,6 @@
 "Move to Trash…" = "Çöp Kutusu’na taşı…";
 "Move to folder" = "Klasöre taşı";
 "My library" = "Kütüphanem";
-"Neutral glass" = "Nötr";
 "New folder" = "Yeni klasör";
 "New images saved to this folder will hang on the line." = "Bu klasöre kaydedilen yeni görseller Shelf’te görünür.";
 "New note" = "Yeni not";
@@ -168,7 +166,6 @@
 "Show or hide the line" = "Shelf’i göster veya gizle";
 "Size" = "Boyut";
 "Small" = "Küçük";
-"Soft colors" = "Hafif renk";
 "Some app copies could not be moved to Trash" = "Bazı uygulama kopyaları Çöp Kutusu’na taşınamadı";
 "Some text copies could not be moved to Trash" = "Bazı metin kopyaları Çöp Kutusu’na taşınamadı";
 "Sort" = "Sırala";

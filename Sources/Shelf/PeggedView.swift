@@ -67,7 +67,7 @@ struct PeggedView: View {
             .clipShape(RoundedRectangle(cornerRadius: Frame.radius - Frame.inset, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Frame.radius - Frame.inset, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.5)
+                    .strokeBorder(ShelfTheme.hairline, lineWidth: ShelfTheme.hairlineWidth)
             )
             .overlay {
                 // A recording says so with a play button over its first frame.
@@ -76,19 +76,17 @@ struct PeggedView: View {
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(.primary)
                         .frame(width: 28, height: 28)
-                        .glassFrame(circle: true)
+                        .shelfBadge(Circle())
                         .allowsHitTesting(false)
                 }
             }
             .padding(Frame.inset)
-            .glassFrame(cornerRadius: Frame.radius)
-            .background(line.theme.wash(.images), in: RoundedRectangle(cornerRadius: Frame.radius))
-            .shadow(color: .black.opacity(hovering ? 0.09 : 0.04), radius: hovering ? 5 : 2, y: 2)
-            // Holding presses the photo in slowly, so a long press feels like
-            // it is building up to something.
-            .scaleEffect(pressed ? 0.985 : 1, anchor: .top)
-            .animation(pressed ? .easeInOut(duration: 0.45) : .spring(response: 0.3, dampingFraction: 0.6), value: pressed)
-            .opacity(dragging ? 0.45 : 1)
+            .background(ShelfTheme.card, in: RoundedRectangle(cornerRadius: Frame.radius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Frame.radius, style: .continuous)
+                    .strokeBorder(ShelfTheme.hairline, lineWidth: ShelfTheme.hairlineWidth))
+            // A held card dims the way a pressed control does.
+            .opacity(dragging ? 0.45 : pressed ? 0.8 : 1)
             .overlay(alignment: .topLeading) {
                 // Drawn here, clicked through GrabView, which sits on top. A
                 // cross sends a file in Shelf's folder to the Trash; for a
@@ -97,14 +95,13 @@ struct PeggedView: View {
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(.primary)
                     .frame(width: 20, height: 20)
-                    .glassFrame(circle: true)
+                    .shelfBadge(Circle())
                     .padding(3)
                     .opacity(hovering && !dragging ? 1 : 0)
-                    .scaleEffect(hovering ? 1 : 0.6)
                     .allowsHitTesting(false)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: Frame.radius).strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: Frame.radius, style: .continuous).strokeBorder(selected ? ShelfTheme.accent : .clear, lineWidth: 2)
                     .allowsHitTesting(false)
             }
             .overlay(alignment: .topTrailing) {
@@ -113,9 +110,9 @@ struct PeggedView: View {
             .overlay(alignment: .bottom) {
                 if let title = item.title, !title.isEmpty {
                     Text(title)
-                        .font(.system(size: 9)).padding(.horizontal, 5).padding(.vertical, 2)
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
                         .lineLimit(1).truncationMode(.tail).frame(maxWidth: Layout.cardWidth)
-                        .background(.regularMaterial, in: Capsule()).offset(y: 18).allowsHitTesting(false)
+                        .offset(y: 17).allowsHitTesting(false)
                 }
             }
             .overlay(GrabArea(item: item, line: line))
@@ -125,8 +122,8 @@ struct PeggedView: View {
                     CopyBadge(title: L("Copied"))
                 }
             }
-            .animation(.easeOut(duration: 0.18), value: hovering)
-            .animation(.easeOut(duration: 0.2), value: copied)
+            .animation(ShelfTheme.stateChange(), value: hovering)
+            .animation(ShelfTheme.stateChange(), value: copied)
             .onHover { hovering = $0 }
             .background(
                 GeometryReader { g in
@@ -142,21 +139,10 @@ struct PeggedView: View {
     }
 }
 
+/// The mat around a photo. The photo's radius is the card's minus the inset.
 enum Frame {
-    static let radius: CGFloat = 10
+    static let radius = ShelfTheme.Radius.card
     static let inset: CGFloat = 4
-}
-
-extension View {
-    /// Native materials follow appearance and accessibility preferences.
-    /// One quiet separator replaces decorative highlights.
-    func glassFrame(cornerRadius: CGFloat = 0, circle: Bool = false, capsule: Bool = false) -> some View {
-        let shape: AnyShape = circle ? AnyShape(Circle())
-            : capsule ? AnyShape(Capsule())
-            : AnyShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        return background(.regularMaterial, in: shape)
-            .overlay(shape.stroke(Color(nsColor: .separatorColor).opacity(0.6), lineWidth: 0.5))
-    }
 }
 
 
@@ -166,17 +152,17 @@ struct FavoriteBadge: View {
     var body: some View {
         Image(systemName: pinned ? "pin.fill" : "pin")
             .font(.system(size: 9, weight: .bold))
-            .foregroundStyle(pinned ? Color.accentColor : Color.primary)
-            .frame(width: 20, height: 20).glassFrame(circle: true).padding(3)
+            .foregroundStyle(pinned ? ShelfTheme.accent : Color.primary)
+            .frame(width: 20, height: 20).shelfBadge(Circle()).padding(3)
             .opacity(visible ? 1 : 0).allowsHitTesting(false)
     }
 }
 struct CopyBadge: View {
     let title: String
     var body: some View {
-        Label(title, systemImage: "checkmark").font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.primary).fixedSize().padding(.horizontal, 10).padding(.vertical, 5)
-            .glassFrame(capsule: true).offset(y: 16).allowsHitTesting(false)
-            .transition(.opacity.combined(with: .offset(y: -4)))
+        Label(title, systemImage: "checkmark").font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.primary).fixedSize().padding(.horizontal, 8).padding(.vertical, 4)
+            .shelfBadge(RoundedRectangle(cornerRadius: ShelfTheme.Radius.control)).offset(y: 16).allowsHitTesting(false)
+            .transition(.opacity)
     }
 }

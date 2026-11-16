@@ -17,7 +17,13 @@ import XCTest
         let ids = line.items.map(\.id), selected = line.selectedIDs
         let model = SettingsModel(line: line, allowsSystemChanges: false)
         let controller = SettingsWindowController(model: model)
-        XCTAssertTrue(controller.window?.title.contains(AppIdentity.name) == true)
+        // A settings window is titled after its pane and switches panes from toolbar tabs.
+        XCTAssertEqual(controller.window?.title, SettingsSection.general.title)
+        XCTAssertEqual(controller.window?.toolbar?.items.map(\.label), SettingsSection.allCases.map(\.title))
+        model.section = .history
+        XCTAssertEqual(controller.window?.title, SettingsSection.history.title)
+        XCTAssertEqual(controller.window?.toolbar?.selectedItemIdentifier?.rawValue, "settings.history")
+        model.section = .general
         XCTAssertFalse(model.allowsSystemChanges)
         model.refresh()
         XCTAssertTrue(before.isEqual(to: f.defaults.persistentDomain(forName: f.suite)!))
@@ -78,7 +84,7 @@ import XCTest
         let delegate = AppDelegate(line: line, watchesFiles: false)
         let menu = NSMenu(); delegate.menuNeedsUpdate(menu)
         XCTAssertEqual(menu.items.filter { !$0.isSeparatorItem }.map(\.title), [
-            AppIdentity.name, L("Show line"), L("Library…"), L("Actions") + "…  " + line.keyboardBindings.title(.commandPalette), L("Copy latest image"), L("Open screenshots folder"),
+            AppIdentity.name, L("Show line"), L("Library…"), L("Actions") + "…", L("Copy latest image"), L("Open screenshots folder"),
             L("Pause clipboard capture"), L("Skip next copy"), L("Settings…"), String(format: L("Quit %@"), AppIdentity.name)])
         XCTAssertFalse(menu.items[0].isEnabled)
         XCTAssertFalse(try XCTUnwrap(menu.items.first { $0.title == L("Copy latest image") }).isEnabled)

@@ -55,22 +55,20 @@ private struct LinkCard: View {
             Color.clear.frame(height: 14).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 5 * Layout.scale) {
                 ZStack {
-                    renderState.theme.wash(.links)
+                    Color(nsColor: .quaternaryLabelColor).opacity(0.5)
                     if let thumbnail { Image(nsImage: thumbnail).resizable().scaledToFit() }
                     else { Image(systemName: LinkIdentity.youtubeID(entry.linkURL ?? URL(string: "https://invalid.example")!) == nil ? "link" : "play.rectangle").font(.system(size: 24)).foregroundStyle(.secondary) }
-                }.frame(width: Layout.cardWidth - 16 * Layout.scale, height: 38 * Layout.scale).clipped().clipShape(RoundedRectangle(cornerRadius: 8))
+                }.frame(width: Layout.cardWidth - 16 * Layout.scale, height: 38 * Layout.scale).clipped().clipShape(RoundedRectangle(cornerRadius: Frame.radius - Frame.inset, style: .continuous))
                 Text(entry.displayTitle).font(.system(size: 11 * Layout.scale, weight: .semibold)).lineLimit(2).frame(height: 26 * Layout.scale, alignment: .topLeading)
                 Text(entry.author ?? entry.linkURL?.host ?? L("Link")).font(.system(size: 10 * Layout.scale)).foregroundStyle(.secondary).lineLimit(1)
             }.padding(8 * Layout.scale).padding(.top, 6 * Layout.scale).frame(width: Layout.cardWidth, alignment: .leading)
-                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: Frame.radius))
-                .background(renderState.theme.wash(.links), in: RoundedRectangle(cornerRadius: Frame.radius))
-                .overlay(RoundedRectangle(cornerRadius: Frame.radius).strokeBorder(links.selectedIDs.contains(entry.id) ? Color.accentColor : Color(nsColor: .separatorColor).opacity(0.5), lineWidth: links.selectedIDs.contains(entry.id) ? 2 : 0.5))
-                .overlay(alignment: .topLeading) { Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).frame(width: 20, height: 20).glassFrame(circle: true).padding(3).opacity(hovering ? 1 : 0).allowsHitTesting(false) }
+                .background(ShelfTheme.card, in: RoundedRectangle(cornerRadius: Frame.radius, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Frame.radius, style: .continuous).strokeBorder(links.selectedIDs.contains(entry.id) ? ShelfTheme.accent : ShelfTheme.hairline, lineWidth: links.selectedIDs.contains(entry.id) ? 2 : ShelfTheme.hairlineWidth))
+                .overlay(alignment: .topLeading) { Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).frame(width: 20, height: 20).shelfBadge(Circle()).padding(3).opacity(hovering ? 1 : 0).allowsHitTesting(false) }
                 .overlay(alignment: .topTrailing) { FavoriteBadge(pinned: entry.favorite, visible: hovering || links.focusedID == entry.id) }
                 .overlay(LinkGrabArea(entry: entry, line: line, links: links))
                 .overlay(alignment: .bottomLeading) { QuickSelectionBadge(number: quickNumber) }
                 .overlay(alignment: .bottom) { if links.copiedIDs.contains(entry.id) { CopyBadge(title: L("Link copied")) } }
-                .shadow(color: .black.opacity(hovering ? 0.09 : 0.04), radius: hovering ? 5 : 2, y: 2)
                 .onHover { hovering = $0 }
         }.accessibilityElement(children: .ignore).accessibilityLabel(entry.displayTitle)
             .accessibilityAddTraits(links.selectedIDs.contains(entry.id) ? [.isButton, .isSelected] : .isButton)

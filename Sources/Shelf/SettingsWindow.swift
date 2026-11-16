@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import ServiceManagement
+import Combine
 import SwiftUI
 
 enum AppIdentity {
@@ -94,19 +95,21 @@ final class SettingsNativeWindow: NSWindow {
     }
 }
 
+/// A standard settings window: one toolbar tab per pane, and the pane's name
+/// as the window title.
 @MainActor
-final class SettingsWindowController: NSWindowController {
+final class SettingsWindowController: NSWindowController, NSToolbarDelegate {
     let model: SettingsModel
     var onBeforeMouseKeyFocus: (() -> Void)?
+    private var sectionSubscription: AnyCancellable?
     init(model: SettingsModel) {
         self.model = model
-        let window = SettingsNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 740, height: 610),
+        let window = SettingsNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 560),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(AppIdentity.name) - \(L("Settings"))"
-        window.minSize = NSSize(width: 690, height: 540)
+        window.title = model.section.title
+        window.minSize = NSSize(width: 560, height: 360)
         window.isReleasedWhenClosed = false
-        window.titlebarAppearsTransparent = true
-        window.toolbarStyle = .unifiedCompact
+        window.toolbarStyle = .preference
         window.onCommandKey = { [weak model] event in
             guard let model, !event.modifierFlags.intersection([.command, .control]).isEmpty,
                   model.line.keyboardBindings.action(for: event, in: .library) == .commandPalette else { return false }
@@ -116,8 +119,39 @@ final class SettingsWindowController: NSWindowController {
         window.center()
         super.init(window: window)
         window.onBeforeMouseKeyFocus = { [weak self] in self?.onBeforeMouseKeyFocus?() }
+        let toolbar = NSToolbar(identifier: "settings")
+        toolbar.delegate = self
+        toolbar.displayMode = .iconAndLabel
+        toolbar.allowsUserCustomization = false
+        toolbar.selectedItemIdentifier = Self.identifier(model.section)
+        window.toolbar = toolbar
+        // Actions and tests change the pane through the model.
+        sectionSubscription = model.$section.sink { [weak self] section in
+            self?.window?.title = section.title
+            self?.window?.toolbar?.selectedItemIdentifier = Self.identifier(section)
+        }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    private static func identifier(_ section: SettingsSection) -> NSToolbarItem.Identifier { .init("settings." + section.rawValue) }
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { SettingsSection.allCases.map(Self.identifier) }
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(toolbar) }
+    func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(toolbar) }
+    func toolbar(
+        _ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool
+    ) -> NSToolbarItem? {
+        guard let section = SettingsSection.allCases.first(where: { Self.identifier($0) == itemIdentifier }) else { return nil }
+        let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+        item.label = section.title
+        item.image = NSImage(systemSymbolName: section.icon, accessibilityDescription: nil)
+        item.target = self
+        item.action = #selector(selectSection(_:))
+        return item
+    }
+    @objc private func selectSection(_ sender: NSToolbarItem) {
+        guard let section = SettingsSection.allCases.first(where: { Self.identifier($0) == sender.itemIdentifier }) else { return }
+        model.section = section
+    }
     func present() {
         model.refresh()
         NSApp.activate(ignoringOtherApps: true)
@@ -139,9 +173,9 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     }
     var icon: String {
         switch self {
-        case .general: "slider.horizontal.3"
-        case .history: "clock.arrow.circlepath"
-        case .sources: "tray.and.arrow.down"
+        case .general: "gearshape"
+        case .history: "clock"
+        case .sources: "doc.on.clipboard"
         case .shortcuts: "keyboard"
         case .about: "info.circle"
         }
@@ -155,45 +189,17 @@ private struct SettingsView: View {
     @State private var historyCleanupKind: LibraryKind?
 
     var body: some View {
-        HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 44, height: 44).accessibilityHidden(true)
-                    Text(AppIdentity.name).font(.system(size: 20, weight: .semibold))
-                    Text(AppIdentity.version).font(.system(size: 11)).foregroundStyle(.secondary)
-                }.padding(.horizontal, 12).padding(.top, 18).padding(.bottom, 5)
-                VStack(spacing: 4) {
-                    ForEach(SettingsSection.allCases) { item in
-                        Button { model.section = item } label: {
-                            Label(item.title, systemImage: item.icon).frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 10).padding(.vertical, 9)
-                                .background(model.section == item ? Color(nsColor: .selectedContentBackgroundColor).opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 7))
-                                .foregroundStyle(model.section == item ? Color.accentColor : Color.primary)
-                        }.buttonStyle(.plain).accessibilityAddTraits(model.section == item ? .isSelected : [])
-                    }
-                }
-                Spacer()
-            }.padding(.horizontal, 10).frame(width: 190).background(.bar)
-            Divider()
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text(model.section.title).font(.system(size: 23, weight: .semibold))
-                    Spacer()
-                    Button(action: model.onCommands) { Label(L("Actions"), systemImage: "command") }
-                        .help(L("Actions") + " · " + line.keyboardBindings.title(.commandPalette))
-                        .accessibilityIdentifier("settings-actions")
-                }.padding(.horizontal, 24).padding(.top, 22).padding(.bottom, 8)
-                Form {
-                    switch model.section {
-                    case .general: general
-                    case .history: history
-                    case .sources: sources
-                    case .shortcuts: shortcuts
-                    case .about: about
-                    }
-                }.formStyle(.grouped)
-            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+        Form {
+            switch model.section {
+            case .general: general
+            case .history: history
+            case .sources: sources
+            case .shortcuts: shortcuts
+            case .about: about
+            }
         }
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in model.refresh() }
     }
 
@@ -211,9 +217,6 @@ private struct SettingsView: View {
                 ForEach(Shelf.allCases, id: \.self) { shelf in
                     Toggle(shelf.title, isOn: model.binding(get: { line.presentation.shelves.contains(shelf) }, set: { line.setShelfVisible(shelf, visible: $0) }))
                         .disabled(line.presentation.shelves == [shelf])
-                }
-                Picker(L("Colors"), selection: model.binding(get: { line.theme }, set: { line.setTheme($0) })) {
-                    ForEach(ShelfTheme.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 Picker(L("Size"), selection: model.binding(get: { line.size }, set: model.setSize)) {
                     Text(L("Small")).tag(Layout.Size.small)

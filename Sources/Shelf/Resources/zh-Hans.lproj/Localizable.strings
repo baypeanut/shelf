@@ -28,7 +28,6 @@
 "Clipboard" = "Clipboard";
 "Close" = "Close";
 "Close preview" = "关闭预览";
-"Colors" = "Colors";
 "Contacts the linked website or YouTube in the background. Private markers, local addresses and links with known secret parameters are skipped." = "Contacts the linked website or YouTube in the background. Private markers, local addresses and links with known secret parameters are skipped.";
 "Content type" = "Content type";
 "Copied" = "已复制";
@@ -101,7 +100,6 @@
 "Move to Trash…" = "移至废纸篓…";
 "Move to folder" = "Move to folder";
 "My library" = "My library";
-"Neutral glass" = "Neutral glass";
 "New folder" = "New folder";
 "New images saved to this folder will hang on the line." = "保存到此文件夹的新图片会挂到晾衣绳上。";
 "New note" = "New note";
@@ -168,7 +166,6 @@
 "Show or hide the line" = "Show or hide the line";
 "Size" = "大小";
 "Small" = "小";
-"Soft colors" = "Soft colors";
 "Some app copies could not be moved to Trash" = "部分应用副本无法移至废纸篓";
 "Some text copies could not be moved to Trash" = "部分文本副本无法移至废纸篓";
 "Sort" = "Sort";

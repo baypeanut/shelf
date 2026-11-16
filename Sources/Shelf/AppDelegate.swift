@@ -302,6 +302,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
 
+        // Increase Contrast, Reduce Transparency and Reduce Motion change how the shelves are drawn.
+        workspace.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.line.objectWillChange.send()
+                self?.line.texts.objectWillChange.send()
+                self?.line.links.objectWillChange.send()
+            }
+        }
+
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -965,8 +974,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         menu.addItem(toggleItem)
         let library = ClosureMenuItem(L("Library…")) { [weak self] in self?.showLibrary() }; library.isEnabled = line.library != nil; menu.addItem(library)
-        let actions = ClosureMenuItem(L("Actions") + "…  " + line.keyboardBindings.title(.commandPalette)) { [weak self] in self?.showCommands() }
-        actions.image = NSImage(systemSymbolName: "command", accessibilityDescription: nil)
+        let actions = ClosureMenuItem(L("Actions") + "…") { [weak self] in self?.showCommands() }
+        // The binding is shown where a menu shows a shortcut, not in the title.
+        if let shortcut = line.keyboardBindings.shortcuts(.commandPalette).first, shortcut.keyLabel.count == 1 {
+            actions.keyEquivalent = shortcut.keyLabel.lowercased()
+            var mask = NSEvent.ModifierFlags()
+            if shortcut.modifiers & controlKey != 0 { mask.insert(.control) }
+            if shortcut.modifiers & optionKey != 0 { mask.insert(.option) }
+            if shortcut.modifiers & shiftKey != 0 { mask.insert(.shift) }
+            if shortcut.modifiers & cmdKey != 0 { mask.insert(.command) }
+            actions.keyEquivalentModifierMask = mask
+        }
         actions.isEnabled = startupError == nil
         menu.addItem(actions)
         let copy = ClosureMenuItem(L("Copy latest image")) { [weak self] in self?.copyLatest() }

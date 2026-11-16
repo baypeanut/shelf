@@ -103,7 +103,7 @@ struct ShelfSearchBar: View {
                     scopeBadges(compact: true).fixedSize()
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 Button { line.onCommandsRequested?() } label: {
-                    Label(L("Actions"), systemImage: "command").font(.system(size: 10, weight: .medium))
+                    Label(L("Actions"), systemImage: "command").font(.system(size: 11))
                 }.buttonStyle(.plain).foregroundStyle(.secondary)
                     .help(L("Actions") + " · " + line.keyboardBindings.title(.commandPalette))
                     .accessibilityIdentifier("search-actions")
@@ -112,8 +112,6 @@ struct ShelfSearchBar: View {
                 } else {
                     Text("\(count)")
                         .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
-                        .padding(.horizontal, 7).padding(.vertical, 3)
-                        .background(.primary.opacity(0.055), in: Capsule())
                         .accessibilityLabel(String(format: L("%d items"), count))
                 }
                 Button { _ = line.closeShelfSearch(shelf) } label: {
@@ -149,26 +147,21 @@ struct ShelfSearchBar: View {
             }
         }
         .foregroundStyle(.primary)
-        .background {
-            RoundedRectangle(cornerRadius: 16).fill(.regularMaterial)
-            RoundedRectangle(cornerRadius: 16).fill(Color(nsColor: .windowBackgroundColor).opacity(0.88))
-        }
-        .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(.primary.opacity(0.12), lineWidth: 1) }
-        .shadow(color: .black.opacity(0.14), radius: 14, x: 0, y: 6)
+        .background(ShelfTheme.overlay, in: RoundedRectangle(cornerRadius: ShelfTheme.Radius.panel, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: ShelfTheme.Radius.panel, style: .continuous).strokeBorder(ShelfTheme.hairline, lineWidth: ShelfTheme.hairlineWidth) }
+        .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 5)
         .accessibilityIdentifier("shelf-search-panel")
         .help(line.presentation.shelves.contains(.images) ? (line.library?.imageSearchStatus.isEmpty == false ? line.library!.imageSearchStatus : L("Search text and OCR")) : L("Search shelves"))
     }
     private func scopeBadges(compact: Bool) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 12) {
             ForEach(line.presentation.shelves, id: \.self) { scope in
                 HStack(spacing: 4) {
                     Image(systemName: scope.icon)
                     if !compact { Text(scope.title) }
                 }
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(line.theme.accent(scope))
-                .padding(.horizontal, 7).padding(.vertical, 4)
-                .background(line.theme.accent(scope).opacity(0.12), in: Capsule())
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
                 .accessibilityElement(children: .ignore).accessibilityLabel(scope.title)
             }
         }
@@ -176,8 +169,7 @@ struct ShelfSearchBar: View {
     private func keyHint(_ value: String) -> some View {
         Text(value).font(.system(size: 9, weight: .medium, design: .monospaced))
             .frame(minWidth: 18, minHeight: 16)
-            .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 4))
-            .overlay { RoundedRectangle(cornerRadius: 4).strokeBorder(.primary.opacity(0.08), lineWidth: 0.5) }
+            .background(ShelfTheme.selectedFill, in: RoundedRectangle(cornerRadius: ShelfTheme.Radius.badge))
     }
 }
 
@@ -201,8 +193,7 @@ struct ShelfSearchSummary: View {
                     .frame(width: 24, height: 24).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel(L("Clear search"))
         }.font(.system(size: 11, weight: .medium)).foregroundStyle(.primary)
-            .background(.regularMaterial, in: Capsule())
-            .overlay { Capsule().strokeBorder(.primary.opacity(0.12), lineWidth: 0.5) }
+            .shelfBadge(RoundedRectangle(cornerRadius: ShelfTheme.Radius.control))
             .accessibilityIdentifier("shelf-search-summary")
     }
 }

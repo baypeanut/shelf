@@ -57,12 +57,11 @@ private struct TextCard: View {
             }
                 .frame(width: Layout.cardWidth - 24, height: 78, alignment: .topLeading)
                 .padding(.horizontal, 12).padding(.top, 14).padding(.bottom, 12)
-                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: Frame.radius))
-                .background(renderState.theme.wash(.texts), in: RoundedRectangle(cornerRadius: Frame.radius))
-                .overlay(RoundedRectangle(cornerRadius: Frame.radius).strokeBorder(texts.selectedIDs.contains(entry.id) ? Color.accentColor : Color(nsColor: .separatorColor).opacity(0.5), lineWidth: texts.selectedIDs.contains(entry.id) ? 2 : 0.5))
+                .background(ShelfTheme.card, in: RoundedRectangle(cornerRadius: Frame.radius, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Frame.radius, style: .continuous).strokeBorder(texts.selectedIDs.contains(entry.id) ? ShelfTheme.accent : ShelfTheme.hairline, lineWidth: texts.selectedIDs.contains(entry.id) ? 2 : ShelfTheme.hairlineWidth))
                 .overlay(alignment: .topLeading) {
                     Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
-                        .frame(width: 20, height: 20).glassFrame(circle: true).padding(3)
+                        .frame(width: 20, height: 20).shelfBadge(Circle()).padding(3)
                         .opacity(hovering && !dragging ? 1 : 0).allowsHitTesting(false)
                 }
                 .overlay(alignment: .topTrailing) { FavoriteBadge(pinned: entry.pinned, visible: (hovering || texts.focusedID == entry.id) && !dragging) }
@@ -71,10 +70,9 @@ private struct TextCard: View {
                 .overlay(alignment: .bottom) {
                     if texts.copiedIDs.contains(entry.id) { CopyBadge(title: L("Text copied")) }
                 }
-                .shadow(color: .black.opacity(hovering ? 0.09 : 0.04), radius: hovering ? 5 : 2, y: 2)
                 .opacity(dragging ? 0.45 : 1)
-                .animation(.easeOut(duration: 0.18), value: hovering)
-                .animation(.easeOut(duration: 0.2), value: texts.copiedIDs.contains(entry.id))
+                .animation(ShelfTheme.stateChange(), value: hovering)
+                .animation(ShelfTheme.stateChange(), value: texts.copiedIDs.contains(entry.id))
                 .onHover { hovering = $0 }
         }
         .accessibilityElement(children: .ignore).accessibilityLabel(entry.title ?? String(entry.text.prefix(180)))

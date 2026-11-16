@@ -32,7 +32,6 @@ enum CaptureMenu {
     static func items(_ capture: CaptureControl) -> [NSMenuItem] {
         if let status = status(capture) {
             let state = NSMenuItem(title: status, action: nil, keyEquivalent: "")
-            state.image = NSImage(systemSymbolName: "pause.circle.fill", accessibilityDescription: nil)
             state.isEnabled = false
             return [state, ClosureMenuItem(L("Resume capture")) { capture.resume() }]
         }

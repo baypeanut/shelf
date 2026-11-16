@@ -28,7 +28,6 @@
 "Clipboard" = "Clipboard";
 "Close" = "Close";
 "Close preview" = "Close preview";
-"Colors" = "Colors";
 "Contacts the linked website or YouTube in the background. Private markers, local addresses and links with known secret parameters are skipped." = "Contacts the linked website or YouTube in the background. Private markers, local addresses and links with known secret parameters are skipped.";
 "Content type" = "Content type";
 "Copied" = "Copied";
@@ -101,7 +100,6 @@
 "Move to Trash…" = "Move to Trash…";
 "Move to folder" = "Move to folder";
 "My library" = "My library";
-"Neutral glass" = "Neutral";
 "New folder" = "New folder";
 "New images saved to this folder will hang on the line." = "New images saved to this folder appear on Shelf.";
 "New note" = "New note";
@@ -168,7 +166,6 @@
 "Show or hide the line" = "Show or hide Shelf";
 "Size" = "Size";
 "Small" = "Small";
-"Soft colors" = "Subtle color";
 "Some app copies could not be moved to Trash" = "Some app copies could not be moved to Trash";
 "Some text copies could not be moved to Trash" = "Some text copies could not be moved to Trash";
 "Sort" = "Sort";

@@ -18,7 +18,7 @@ struct LineView: View {
                     ZStack(alignment: .topLeading) {
                         Color.clear
                             .overlay(alignment: .bottom) {
-                                Rectangle().fill(Color(nsColor: .separatorColor).opacity(0.55)).frame(height: 0.5)
+                                Rectangle().fill(ShelfTheme.hairline).frame(height: ShelfTheme.hairlineWidth)
                             }.allowsHitTesting(false)
                         if shelf == .texts { TextShelfView(line: line, texts: texts, width: width) }
                         else if shelf == .links { LinkShelfView(line: line, links: links, width: width) }
@@ -43,8 +43,8 @@ struct LineView: View {
                             Button { line.focusShelf(shelf) } label: {
                                 Label(shelf.title, systemImage: shelf.icon)
                             }.padding(.horizontal, 9).padding(.vertical, 6)
-                                .foregroundStyle(line.activeShelf == shelf ? line.theme.accent(shelf) : Color.secondary)
-                                .background(line.activeShelf == shelf ? line.theme.accent(shelf).opacity(0.10) : .clear, in: RoundedRectangle(cornerRadius: 7))
+                                .foregroundStyle(line.activeShelf == shelf ? Color.primary : Color.secondary)
+                                .background(line.activeShelf == shelf ? ShelfTheme.selectedFill : .clear, in: RoundedRectangle(cornerRadius: ShelfTheme.Radius.control))
                                 .accessibilityAddTraits(line.activeShelf == shelf ? .isSelected : [])
                                 .help(L("Tab switches the active shelf"))
                                 .background(hitRect(Self.headerIDs[shelf]!))
@@ -56,8 +56,8 @@ struct LineView: View {
                 }
             }.frame(width: width, height: line.panelHeight, alignment: .topLeading)
                 .background(Color(nsColor: .windowBackgroundColor))
-                .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 14, bottomTrailingRadius: 14))
-                .overlay(alignment: .bottom) { Rectangle().fill(Color(nsColor: .separatorColor).opacity(0.5)).frame(height: 0.5) }
+                .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: ShelfTheme.Radius.panel, bottomTrailingRadius: ShelfTheme.Radius.panel))
+                .overlay(alignment: .bottom) { Rectangle().fill(ShelfTheme.hairline).frame(height: ShelfTheme.hairlineWidth) }
                 .overlay(alignment: .top) {
                     if width >= 700, line.isShelfSearchActive, line.searchEditingShelf == nil {
                         ShelfSearchSummary(line: line, shelf: line.activeShelf)
@@ -122,8 +122,8 @@ private struct ShelfControls: View {
                 .menuStyle(.borderlessButton).fixedSize().accessibilityLabel(L("Shelf settings"))
         }.padding(.horizontal, 6).padding(.vertical, 1)
             .foregroundStyle(.secondary)
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.75), in: RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor).opacity(0.4), lineWidth: 0.5))
+            .background(Color(nsColor: .controlBackgroundColor).opacity(0.75), in: RoundedRectangle(cornerRadius: ShelfTheme.Radius.control))
+            .overlay(RoundedRectangle(cornerRadius: ShelfTheme.Radius.control).strokeBorder(ShelfTheme.hairline, lineWidth: ShelfTheme.hairlineWidth))
     }
     private func iconButton(_ icon: String, _ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) { Image(systemName: icon).frame(minWidth: 26, minHeight: 26) }
@@ -139,7 +139,8 @@ private struct ShelfNotice: View {
     var body: some View {
         if let message = (line.activeShelf == .texts ? (texts.notice ?? line.notice) : line.activeShelf == .links ? (links.notice ?? line.notice) : line.notice) {
             HStack { Text(message); Button(L("Dismiss")) { line.notice = nil; texts.notice = nil; links.notice = nil } }
-                .font(.system(size: 11)).padding(7).background(.regularMaterial, in: Capsule())
+                .font(.system(size: 11)).controlSize(.small).padding(.horizontal, 10).padding(.vertical, 6)
+                .shelfBadge(RoundedRectangle(cornerRadius: ShelfTheme.Radius.control)).padding(12)
         }
     }
 }
@@ -150,7 +151,7 @@ struct ShelfEmptyState: View {
     let title: String
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: icon).font(.system(size: 24, weight: .light)).foregroundStyle(.tertiary)
+            Image(systemName: icon).font(.system(size: 22)).foregroundStyle(.tertiary)
             Text(title).font(.system(size: 12)).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center).frame(maxWidth: 400)
         }.padding(.horizontal, 24).accessibilityElement(children: .combine)

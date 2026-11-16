@@ -7,3 +7,7 @@ Run `swift test`, `swift scripts/check-strings.swift`, the publication audit and
 Preserve the component notices distributed with optional dependencies. Changes to networking, capture defaults, storage or permissions must update `PRIVACY.md` and receive focused security review. Release claims must reflect actual signing, notarization and test evidence.
 
 The [testing guide](docs/testing-guide.md) covers focused reruns, optimized tests, standalone runners and the isolated UI harness. Use the [build guide](docs/build-guide.md) when checking packaged startup or optional model assets.
+
+## Formatting
+
+Use `swift format format --in-place --configuration .swift-format` on the Swift files you touch. Keep unrelated files out of the formatting change. The configuration uses four-space indentation, a 140-character line limit and preserves existing line breaks. CI reports formatting issues only for Swift files changed in the push or pull request; this check is informational.

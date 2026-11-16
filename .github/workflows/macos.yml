@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Show toolchain
         run: |
           xcodebuild -version
@@ -26,6 +27,22 @@ jobs:
         with:
           path: local/models/MobileCLIP
           key: search-models-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-search-models.py') }}
+      - name: Lint changed Swift files
+        continue-on-error: true
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ ! "$BASE_REVISION" =~ ^[0-9a-f]{40}$ ]] || [[ "$BASE_REVISION" == 0000000000000000000000000000000000000000 ]]; then
+            echo "No comparison revision for this event; skipping changed-file lint."
+            exit 0
+          fi
+          git cat-file -e "$BASE_REVISION^{commit}"
+          status=0
+          git diff --name-only --diff-filter=AM -z "$BASE_REVISION"...HEAD -- '*.swift' > "$RUNNER_TEMP/changed-swift-files"
+          while IFS= read -r -d '' file; do
+            swift format lint --strict --configuration .swift-format "$file" || status=1
+          done < "$RUNNER_TEMP/changed-swift-files"
+          exit "$status"
       - name: Validate release version
         run: |
           python3 scripts/test-release-version.py

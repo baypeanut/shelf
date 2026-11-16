@@ -28,7 +28,7 @@ case "${SHELF_UI_CONFIGURATION:-release}" in
 esac
 swiftc "${UI_OPT[@]}" -g -file-prefix-map "$PWD=." -sdk "$SDK" -module-cache-path "$OUT/ModuleCache" \
   -D STANDALONE_TESTS -parse-as-library "${SOURCES[@]}" \
-  Tests/ImageHistoryTests/TestFixtures.swift Tests/UITests/UIHarness.swift \
+  Tests/ImageHistoryTests/TestFixtures.swift Tests/UITests/UIHarness.swift Tests/UITests/ScreenRenderer.swift \
   -o "$APP/Contents/MacOS/FeatureTests"
 python3 - "$APP" <<'PY'
 from pathlib import Path

@@ -44,6 +44,16 @@ open "build/Shelf UI Test.app"
 
 The separate harness uses synthetic fixtures and an isolated bundle identifier. Quit an existing harness before rebuilding it. Generated observations stay under `local/validation/current/`.
 
+## Render every screen to PNG files
+
+```sh
+bash scripts/render-screens.sh local/validation/screens en tr
+```
+
+The renderer builds the harness, then draws each screen into the folder you name: the shelves, Library, previews, markup and crop, every Settings pane, Actions, the pickers and the confirmation alerts, in light and dark appearance, one folder per language and appearance. Languages default to `en` and `tr`; any translation in `Sources/Shelf/Resources` can be named. It shows no window, uses its own temporary fixtures and works while the screen is locked. Set `SHELF_RENDER_SKIP_BUILD=1` to reuse the harness already built.
+
+Views draw themselves in the process, so the files differ from the screen in known ways. Materials that blend with the desktop come out flat, window shadows are missing, an inactive window's sidebar selection is drawn without its label, and hover states never appear. Menus cannot be drawn this way: `menus.txt` lists the menu bar menu's titles, order, state and key equivalents instead, with `status-item.png` for its icon. `render-<language>.txt` names every file written and any screen that could not be drawn. Read the PNG files after an interface change, and check the longer translations for truncation.
+
 ## Reuse a QA session
 
 The harness accepts `--qa-session` followed by a UUID to resume an isolated profile across process restarts. Use a fresh UUID for an independent scenario, then reopen the same session to check persistence. Keep the session identifier and fixture data local.

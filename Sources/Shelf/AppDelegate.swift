@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let line: Line
 #if STANDALONE_TESTS
     @objc var shelfHitGeometryUpdateCountForTesting: Int { line.shelfHitGeometryUpdateCount }
+    var statusItemImageForRendering: NSImage? { statusItem?.button?.image }
 #endif
     private let clipboardSource: (any ClipboardSource)?
     private let watchesFiles: Bool
@@ -429,6 +430,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Asked once. Changing system settings is the user's call, never ours.
     private func offerInbox() {
         Inbox.wasOffered = true
+        let alert = Self.inboxOfferAlert()
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn { setInbox(true) }
+    }
+
+    /// The alerts below are built apart from the code that runs them, so the
+    /// screen renderer can draw exactly what a person is asked.
+    static func inboxOfferAlert() -> NSAlert {
         let alert = NSAlert()
         alert.messageText = L("Let Shelf handle your screenshots?")
         alert.informativeText = L(
@@ -436,8 +445,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.addButton(withTitle: L("Turn on"))
         alert.addButton(withTitle: L("Not now"))
         if let icon = NSImage(named: "Shelf") ?? NSApp.applicationIconImage { alert.icon = icon }
-        NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertFirstButtonReturn { setInbox(true) }
+        return alert
+    }
+
+    static func clearHistoryAlert(count: Int) -> NSAlert {
+        let alert = NSAlert()
+        alert.messageText = L("Clear unsaved copies?")
+        alert.informativeText = String(
+            format: L("%d unsaved copies will move to recoverable Library Trash. Pinned items, saved items, folders, tags and original files are kept."),
+            count)
+        alert.addButton(withTitle: L("Move to Trash"))
+        alert.addButton(withTitle: L("Cancel"))
+        alert.buttons.first?.isEnabled = count > 0
+        return alert
+    }
+
+    static func emptyTrashAlert(count: Int) -> NSAlert {
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = String(format: L("Permanently delete %d items in Trash?"), count)
+        alert.informativeText = L("This cannot be undone. Copies Shelf made move to the system Trash; original files stay in place.")
+        let empty = alert.addButton(withTitle: L("Empty Trash")), cancel = alert.addButton(withTitle: L("Cancel"))
+        empty.hasDestructiveAction = true; empty.keyEquivalent = ""; empty.isEnabled = count > 0
+        cancel.keyEquivalent = "\u{1b}"
+        return alert
     }
 
     /// Watching the clipboard remains opt in through Settings.
@@ -1078,12 +1109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let snapshot: UnsavedHistorySnapshot
         do { snapshot = try store.unsavedHistorySnapshot(kind: kind) }
         catch { NSAlert(error: error).runModal(); return }
-        let alert = NSAlert()
-        alert.messageText = L("Clear unsaved copies?")
-        alert.informativeText = String(format: L("%d unsaved copies will move to recoverable Library Trash. Pinned items, saved items, folders, tags and original files are kept."), snapshot.ids.count)
-        alert.addButton(withTitle: L("Move to Trash"))
-        alert.addButton(withTitle: L("Cancel"))
-        alert.buttons.first?.isEnabled = !snapshot.ids.isEmpty
+        let alert = Self.clearHistoryAlert(count: snapshot.ids.count)
         if alert.runModal() == .alertFirstButtonReturn {
             do {
                 try store.clearUnsavedHistory(snapshot)
@@ -1100,13 +1126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let snapshot: (count: Int, asOf: Date)
         do { snapshot = try store.trashSnapshot() }
         catch { NSAlert(error: error).runModal(); return }
-        let alert = NSAlert()
-        alert.alertStyle = .critical
-        alert.messageText = String(format: L("Permanently delete %d items in Trash?"), snapshot.count)
-        alert.informativeText = L("This cannot be undone. Copies Shelf made move to the system Trash; original files stay in place.")
-        let empty = alert.addButton(withTitle: L("Empty Trash")), cancel = alert.addButton(withTitle: L("Cancel"))
-        empty.hasDestructiveAction = true; empty.keyEquivalent = ""; empty.isEnabled = snapshot.count > 0
-        cancel.keyEquivalent = "\u{1b}"
+        let alert = Self.emptyTrashAlert(count: snapshot.count)
         if alert.runModal() == .alertFirstButtonReturn {
             do {
                 try store.emptyTrash(asOf: snapshot.asOf)

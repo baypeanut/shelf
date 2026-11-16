@@ -95,6 +95,8 @@ import QuartzCore
  var shelfToggleBenchmarkRestoresImageSearch=false
  var timer:Timer?
  let qaSessionID:UUID? = {
+  // A render starts from the same seed every time and never resumes a session.
+  if ScreenRenderer.outputFolder != nil {return nil}
   let arguments=CommandLine.arguments
   guard let index=arguments.firstIndex(of:"--qa-session") else{
    let marker=Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("local/validation/current/qa-session.txt")
@@ -104,7 +106,7 @@ import QuartzCore
   return value
  }()
  var preserveSessionOnExit=false
- let output=Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("local/validation/current")
+ let output=ScreenRenderer.outputFolder != nil ? ScreenRenderer.fixtureFolder : Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("local/validation/current")
  func applicationDidFinishLaunching(_ n:Notification){
   do {
    try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
@@ -215,6 +217,11 @@ import QuartzCore
     MainActor.assumeIsolated {
      if let w=e.window, let c=w.contentView {let p=c.convert(e.locationInWindow,from:nil);let h=c.hitTest(c.convert(p,to:c.superview));self.pointerEvents.append(["mouse":[NSEvent.mouseLocation.x,NSEvent.mouseLocation.y],"screen":[w.convertPoint(toScreen:e.locationInWindow).x,w.convertPoint(toScreen:e.locationInWindow).y],"type":e.type.rawValue,"window":w.title,"point":[p.x,p.y],"hit":h.map{String(describing:type(of:$0))} ?? "none"]);self.pointerEvents=Array(self.pointerEvents.suffix(20))}
     };return e
+   }
+   if let folder=ScreenRenderer.outputFolder {
+    let renderer=ScreenRenderer(harness:self,output:folder)
+    Task{@MainActor in await renderer.run()}
+    return
    }
    timer=Timer.scheduledTimer(withTimeInterval:0.4,repeats:true){_ in MainActor.assumeIsolated{self.record()}}
    delegate.showLibrary()
@@ -898,6 +905,7 @@ import QuartzCore
   TextClipboardWatcher.isEnabled=false;ClipboardWatcher.isEnabled=false
   if !LanguagePreferences.relaunching {UserDefaults.standard.removePersistentDomain(forName:"com.baypeanut.Shelf.uitests")}
   f.cleanup()
+  if ScreenRenderer.outputFolder != nil {try? FileManager.default.removeItem(at:ScreenRenderer.fixtureFolder)}
  }
 }
 final class DropReceiver:NSView {

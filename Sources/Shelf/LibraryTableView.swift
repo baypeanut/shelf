@@ -45,7 +45,7 @@ private final class LibraryNativeTable: NSTableView {
         view = scroll; scroll.documentView = nativeTable
         scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.autohidesScrollers = true
         scroll.drawsBackground = false; scroll.contentView.postsBoundsChangedNotifications = true
-        nativeTable.style = .fullWidth; nativeTable.rowHeight = 52; nativeTable.intercellSpacing = NSSize(width: 10, height: 0)
+        nativeTable.style = .inset; nativeTable.rowHeight = 36; nativeTable.intercellSpacing = NSSize(width: 10, height: 0)
         nativeTable.usesAlternatingRowBackgroundColors = false; nativeTable.allowsMultipleSelection = true
         nativeTable.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         nativeTable.autosaveName = "ShelfLibraryListColumns"; nativeTable.autosaveTableColumns = true
@@ -151,7 +151,7 @@ private final class LibraryNativeTable: NSTableView {
         label.translatesAutoresizingMaskIntoConstraints = false; cell.addSubview(label); cell.textField = label
         if identifier.rawValue == "title" {
             let image = NSImageView(); image.imageScaling = .scaleProportionallyUpOrDown; image.translatesAutoresizingMaskIntoConstraints = false; cell.addSubview(image); cell.imageView = image
-            NSLayoutConstraint.activate([image.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 8), image.widthAnchor.constraint(equalToConstant: 36), image.heightAnchor.constraint(equalToConstant: 36), image.centerYAnchor.constraint(equalTo: cell.centerYAnchor), label.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 10)])
+            NSLayoutConstraint.activate([image.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2), image.widthAnchor.constraint(equalToConstant: 28), image.heightAnchor.constraint(equalToConstant: 28), image.centerYAnchor.constraint(equalTo: cell.centerYAnchor), label.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 10)])
             let badge = NSImageView(); badge.tag = 81; badge.translatesAutoresizingMaskIntoConstraints = false; cell.addSubview(badge)
             NSLayoutConstraint.activate([badge.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6), badge.centerYAnchor.constraint(equalTo: cell.centerYAnchor), badge.widthAnchor.constraint(equalToConstant: 13), badge.heightAnchor.constraint(equalToConstant: 13)])
         } else { label.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 5).isActive = true }

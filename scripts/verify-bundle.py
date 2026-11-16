@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify the actual packaged Shelf identity, resources and executable."""
+import hashlib
 import json
 from pathlib import Path
 import plistlib
@@ -39,6 +40,10 @@ if models.exists():
     provenance = json.loads((models / 'model-source.json').read_text())
     if provenance.get('model') != 'MobileCLIP-S2' or provenance.get('revision') != '3e0a7bfb9fe83da8a3efaa3fd8f7df24214bb947':
         raise SystemExit('Unexpected offline model identity')
+    asset_hashes = {'clip-vocab.json': '7aeb221a2a93047170070379743b49204c13d6993d9947323cd94b75c1f657ba', 'clip-merges.txt': '7e0847f6fced8bd28a736dcaeab20e64ac19010771700197ba479a0a8e517d4f', 'LICENSE-MobileCLIP-S2': 'a94a7a9c59509751580a31fa1ab3b418a97b01304549d382b8b96ca8fa85a179', 'LICENSE-Apple-code': '7be983907ac2fa52c53e29ad8eca89d67d1e77bcc46a0271702845d0a1f4114d', 'ACKNOWLEDGEMENTS-MobileCLIP': '1fdf63aae2e325e2efde1aed1d3cc9addb063ea60a31f40d2a564bd7c29ac283'}
+    for name, expected in asset_hashes.items():
+        if provenance.get('sha256', {}).get(name) != expected or hashlib.sha256((models / name).read_bytes()).hexdigest() != expected:
+            raise SystemExit('Bundled asset checksum mismatch: ' + name)
 executable = app / 'Contents/MacOS/Shelf'
 subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
 linked = subprocess.check_output(['otool', '-L', str(executable)], text=True)

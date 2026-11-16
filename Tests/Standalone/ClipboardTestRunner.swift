@@ -4,7 +4,6 @@ import Foundation
 import os
 
 class ClipboardTestCase {}
-let log = Logger(subsystem: "local.clipboard-tests", category: "synthetic")
 private var assertionFailures = 0
 
 private struct UnwrapFailure: Error {}
@@ -23,14 +22,16 @@ func XCTAssertEqual<T: Equatable>(_ actual: @autoclosure () throws -> T,
     } catch { fail("Unexpected error: \(error) \(message)", file: file, line: line) }
 }
 
-func XCTAssertTrue(_ value: @autoclosure () -> Bool, _ message: String = "",
+func XCTAssertTrue(_ value: @autoclosure () throws -> Bool, _ message: String = "",
     file: StaticString = #filePath, line: UInt = #line) {
-    if !value() { fail("Expected true \(message)", file: file, line: line) }
+    do { if try !value() { fail("Expected true \(message)", file: file, line: line) } }
+    catch { fail("Unexpected error: \(error)", file: file, line: line) }
 }
 
-func XCTAssertFalse(_ value: @autoclosure () -> Bool, _ message: String = "",
+func XCTAssertFalse(_ value: @autoclosure () throws -> Bool, _ message: String = "",
     file: StaticString = #filePath, line: UInt = #line) {
-    if value() { fail("Expected false \(message)", file: file, line: line) }
+    do { if try value() { fail("Expected false \(message)", file: file, line: line) } }
+    catch { fail("Unexpected error: \(error)", file: file, line: line) }
 }
 
 func XCTAssertNil(_ value: @autoclosure () throws -> Any?, _ message: String = "",

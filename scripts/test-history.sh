@@ -4,17 +4,19 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT="$PWD/.build/history-tests"
 mkdir -p "$OUT/ModuleCache"
-SDK="${SDKROOT:-$(xcrun --show-sdk-path)}"
-# CLT's macOS 27 SDK requires a SwiftUI macro plugin provided only by Xcode.
-if [ -z "${SDKROOT:-}" ] && [[ "$(xcrun --find swiftc)" == /Library/Developer/CommandLineTools/* ]] && [ -d /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk ]; then
-  SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
+COMPILER="$(xcrun --sdk macosx --find swiftc)"
+SDK="$(xcrun --sdk macosx --show-sdk-path)"
+printf 'import AppKit\nimport SwiftUI\n' > "$OUT/toolchain-probe.swift"
+if ! python3 scripts/run-bounded.py 30 "$OUT/toolchain.log" "$COMPILER" -sdk "$SDK" -typecheck "$OUT/toolchain-probe.swift"; then
+  echo "No compatible macOS SDK/compiler pair; select a matching Xcode toolchain." >&2
+  exit 1
 fi
 SOURCES=()
 for source in Sources/Shelf/*.swift; do
   [[ "$source" == */main.swift ]] || SOURCES+=("$source")
 done
-swiftc -sdk "$SDK" -module-cache-path "$OUT/ModuleCache" \
+python3 scripts/run-bounded.py 180 "$OUT/compile.log" "$COMPILER" -sdk "$SDK" -module-cache-path "$OUT/ModuleCache" \
   -D STANDALONE_TESTS -parse-as-library "${SOURCES[@]}" \
   Tests/ImageHistoryTests/*.swift Tests/Standalone/HistoryTestRunner.swift \
   -o "$OUT/history-tests"
-"$OUT/history-tests"
+python3 scripts/run-bounded.py 120 "$OUT/test.log" "$OUT/history-tests"

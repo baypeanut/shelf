@@ -198,6 +198,7 @@ extension String {
     var canUndoShelfRemoval: Bool { !shelfRemovalUndo.isEmpty }
     var canUndoTrash: Bool { !trashRemovalUndo.isEmpty }
     private let readerQueue = DispatchQueue(label: "com.baypeanut.Shelf.library.reader", qos: .userInitiated)
+    private let maintenanceQueue = DispatchQueue(label: "com.baypeanut.Shelf.library.maintenance", qos: .utility)
     var retentionDays: Int { let days = defaults.integer(forKey: "historyRetentionDays"); return ImageHistory.dayChoices.contains(days) ? days : 30 }
     func retentionDays(for kind: LibraryKind) -> Int { HistoryRetention.days(kind, defaults: defaults) }
     var thumbnailsFolder: URL { root.appendingPathComponent("Thumbnails", isDirectory: true) }
@@ -218,6 +219,8 @@ extension String {
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: databaseURL.path)
         try db.execute("PRAGMA journal_mode=WAL")
         try db.execute("PRAGMA synchronous=FULL")
+        // Content removed from Trash is overwritten rather than left in free pages.
+        try db.execute("PRAGMA secure_delete=ON")
         for sql in [
             "CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL)",
             "CREATE TABLE IF NOT EXISTS items(id TEXT PRIMARY KEY,kind TEXT NOT NULL,created REAL NOT NULL,updated REAL NOT NULL,copied REAL,retained REAL,favorite INTEGER NOT NULL,shelf INTEGER NOT NULL,deleted REAL,path TEXT,normalized TEXT,domain TEXT NOT NULL,sort_title TEXT NOT NULL,search TEXT NOT NULL,payload BLOB NOT NULL)",
@@ -916,7 +919,111 @@ extension String {
             expired += try LibrarySQL.decode(db.rows(sql, [.text(kind.rawValue), .real(cutoff.timeIntervalSince1970)])).filter { ($0.lastCapturedAt ?? $0.createdAt) <= cutoff }
         }
         if !expired.isEmpty { try trash(expired.map(\.id)) }
+        // Copies trashed above start their Trash clock now; only items that
+        // have already waited out the Trash period are removed for good.
+        if let days = HistoryRetention.trashDays(defaults: defaults) {
+            try purgeTrash(olderThan: now().addingTimeInterval(-Double(days) * 86400))
+        }
     }
+    func trashCount(olderThan cutoff: Date = .distantFuture) throws -> Int {
+        Int(try db.rows("SELECT count(*) AS n FROM items WHERE deleted IS NOT NULL AND deleted<=?", [.real(cutoff.timeIntervalSince1970)]).first?["n"]?.number ?? 0)
+    }
+    /// Permanently removes items that entered Trash at or before `cutoff`,
+    /// with their folder, tag, search and identity rows, in one transaction.
+    /// Restored items and items trashed later are untouched. Files Shelf made
+    /// for those items then move to the system Trash; a file that cannot be
+    /// moved stays where it is and never brings a row back. Originals outside
+    /// Shelf's storage are not touched.
+    @discardableResult func purgeTrash(olderThan cutoff: Date) throws -> [UUID] {
+        let bound: [SQLValue] = [.real(cutoff.timeIntervalSince1970)]
+        let expired = "deleted IS NOT NULL AND deleted<=?", expiredIDs = "SELECT id FROM items WHERE deleted IS NOT NULL AND deleted<=?"
+        func extract(_ field: String) -> String { "json_extract(CAST(payload AS TEXT),'$.\(field)') AS \(field)" }
+        let fileFields = ["path", "markupBasePath", "recordingOriginalPath"]
+        var rows = [[String: SQLValue]]()
+        try db.transaction {
+            // Paths only: a trashed megabyte of text is never decoded to delete it.
+            rows = try db.rows("SELECT id,kind,path,\(extract("markupBasePath")),\(extract("recordingOriginalPath")),\(extract("thumbnailPath")) FROM items WHERE \(expired)", bound)
+            guard !rows.isEmpty else { return }
+            for row in rows where row["kind"]?.string == LibraryKind.image.rawValue {
+                // The durable queue retries a managed copy that cannot move now.
+                for path in fileFields.compactMap({ row[$0]?.string }) where files.isFavoriteCopy(URL(fileURLWithPath: path)) {
+                    try db.execute("INSERT OR IGNORE INTO image_markup_garbage VALUES(?)", [.text(path)])
+                }
+            }
+            try db.execute("DELETE FROM item_tags WHERE item IN (\(expiredIDs))", bound)
+            try db.execute("DELETE FROM item_collections WHERE item IN (\(expiredIDs))", bound)
+            try db.execute("DELETE FROM search_fts WHERE id IN (\(expiredIDs))", bound)
+            try db.execute("DELETE FROM text_identity WHERE item IN (\(expiredIDs))", bound)
+            try db.execute("DELETE FROM image_analysis WHERE item IN (\(expiredIDs))", bound)
+            try db.execute("DELETE FROM items WHERE \(expired)", bound)
+        }
+        let ids = rows.compactMap { $0["id"]?.string.flatMap(UUID.init(uuidString:)) }
+        guard !ids.isEmpty else { return [] }
+        invalidateShelfUndo(ids); invalidateTrashUndo(ids)
+        // Committed. Nothing below can fail the purge or restore a row.
+        drainMarkupGarbage()
+        let live = (try? db.rows("SELECT path,\(extract("markupBasePath")),\(extract("recordingOriginalPath")) FROM items WHERE kind='image'")) ?? []
+        let referenced = Set(live.flatMap { row in fileFields.compactMap { row[$0]?.string } })
+        for row in rows {
+            guard let id = row["id"]?.string else { continue }
+            switch row["kind"]?.string.flatMap(LibraryKind.init(rawValue:)) {
+            case .image:
+                for path in Set(fileFields.compactMap { row[$0]?.string }) where !referenced.contains(path) {
+                    let url = URL(fileURLWithPath: path)
+                    if files.isClipboardCopy(url) { _ = try? files.trashAppCopy(url) }
+                }
+            case .text: trashMaterializedCopy("Texts/Text \(id).txt")
+            case .link:
+                trashMaterializedCopy("Links/Link \(id).webloc")
+                if let path = row["thumbnailPath"]?.string {
+                    let file = URL(fileURLWithPath: path)
+                    if file.deletingLastPathComponent() == thumbnailsFolder, file.resolvingSymlinksInPath() == file { try? FileManager.default.removeItem(at: file) }
+                }
+            case nil: break
+            }
+        }
+        changedIDs = Set(ids)
+        changedKinds = Set(rows.compactMap { $0["kind"]?.string.flatMap(LibraryKind.init(rawValue:)) })
+        revision += 1
+        // Deleting from the search index only marks its words; merging the
+        // index drops them. Until the log is folded back and truncated it
+        // still holds the old pages.
+        try? db.execute("INSERT INTO search_fts(search_fts) VALUES('optimize')")
+        _ = try? db.rows("PRAGMA wal_checkpoint(TRUNCATE)")
+        if let free = try? db.rows("PRAGMA freelist_count").first?["freelist_count"]?.number,
+           let pages = try? db.rows("PRAGMA page_count").first?["page_count"]?.number, free >= 256, free * 4 > pages { compact() }
+        return ids
+    }
+    /// Empties Trash as the user saw it at `date`: an item trashed after the
+    /// confirmation appeared is kept.
+    @discardableResult func emptyTrash(asOf date: Date = .distantFuture) throws -> [UUID] {
+        let ids = try purgeTrash(olderThan: date)
+        if !ids.isEmpty { compact() }
+        return ids
+    }
+    /// The text or link file Shelf wrote for a drag or export of this item.
+    private func trashMaterializedCopy(_ name: String) {
+        let file = files.inbox.appendingPathComponent(name), folder = file.deletingLastPathComponent()
+        guard folder.resolvingSymlinksInPath().path == folder.standardizedFileURL.path, files.isRegularFile(file) else { return }
+        _ = try? files.moveToTrash(file)
+    }
+    /// Returns free pages to the system. Purged content is already overwritten,
+    /// so this only shrinks the file. VACUUM rewrites all of it: it runs on its
+    /// own connection off the main actor, and is skipped for a library large
+    /// enough that a save could wait on it longer than the busy timeout.
+    func compact(completion: (@MainActor (Bool) -> Void)? = nil) {
+        let url = databaseURL
+        maintenanceQueue.async {
+            var compacted = false
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? Int.max
+            if size <= Self.maximumCompactedBytes, let database = try? LibraryDatabase(url: url, verify: false) {
+                compacted = (try? database.execute("VACUUM")) != nil
+                _ = try? database.rows("PRAGMA wal_checkpoint(TRUNCATE)")
+            }
+            if let completion { Task { @MainActor in completion(compacted) } }
+        }
+    }
+    nonisolated static let maximumCompactedBytes = 256 * 1024 * 1024
     func collections() throws -> [LibraryCollection] {
         try db.rows("SELECT * FROM collections ORDER BY folded,id").map { row in
             guard let id = row["id"]?.string.flatMap(UUID.init(uuidString:)), let name = row["name"]?.string else { throw HistoryFiles.Failure.unsafeFile }

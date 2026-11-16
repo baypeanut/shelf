@@ -120,6 +120,7 @@ enum HistoryTestRunner {
         let libraryKeyboardContractTests = LibraryKeyboardContractTests()
         let libraryKeyboardWorkflowTests = LibraryKeyboardWorkflowTests()
         let libraryStore = LibraryStoreTests()
+        let trashPurge = TrashPurgeTests()
         let libraryInteraction = LibraryInteractionTests()
         let publicLinks = PublicLinkPolicyTests()
         let requestedUX = RequestedUXTests()
@@ -545,6 +546,14 @@ enum HistoryTestRunner {
             ("testPagingAndBackgroundQueriesRespectScopeAndResultOrder", libraryStore.testPagingAndBackgroundQueriesRespectScopeAndResultOrder),
             ("testRecapturedLinkMovesLeftAndRenewsTemporaryCaptureWithoutResettingOriginalDate", libraryStore.testRecapturedLinkMovesLeftAndRenewsTemporaryCaptureWithoutResettingOriginalDate),
             ("testRestoringOldCopyAfterRecapturePreservesBothRecordsAndPinsExactImageID", libraryStore.testRestoringOldCopyAfterRecapturePreservesBothRecordsAndPinsExactImageID),
+            ("testPurgeRemovesOnlyExpiredTrashWithItsFolderTagSearchAndIdentityRows", trashPurge.testPurgeRemovesOnlyExpiredTrashWithItsFolderTagSearchAndIdentityRows),
+            ("testImageAnalysisRowsLeaveWithThePurgedImage", trashPurge.testImageAnalysisRowsLeaveWithThePurgedImage),
+            ("testAutomaticPurgeWaitsOutTheTrashPeriodAndNeverKeepsTrash", trashPurge.testAutomaticPurgeWaitsOutTheTrashPeriodAndNeverKeepsTrash),
+            ("testEmptyTrashPurgesWhatWasConfirmedAndInvalidatesUndo", trashPurge.testEmptyTrashPurgesWhatWasConfirmedAndInvalidatesUndo),
+            ("testPurgeMovesShelfCopiesToTrashAndLeavesOriginalsAndSharedFiles", trashPurge.testPurgeMovesShelfCopiesToTrashAndLeavesOriginalsAndSharedFiles),
+            ("testFileThatCannotMoveToTrashDoesNotBringItsRowBack", trashPurge.testFileThatCannotMoveToTrashDoesNotBringItsRowBack),
+            ("testPurgedTextIsNoLongerInTheDatabaseFiles", trashPurge.testPurgedTextIsNoLongerInTheDatabaseFiles),
+            ("testCompactionReturnsFreedPagesAndKeepsTheLibraryUsable", trashPurge.testCompactionReturnsFreedPagesAndKeepsTheLibraryUsable),
             ("testFailedPinFolderTagOrEditRecoversThePrivateCopyItMade", libraryStore.testFailedPinFolderTagOrEditRecoversThePrivateCopyItMade),
             ("testBatchThatFailsMidwayRecoversCopiesMadeForEarlierItems", libraryStore.testBatchThatFailsMidwayRecoversCopiesMadeForEarlierItems),
             ("testFailedPrivateWriteLeavesNoStagedFile", libraryStore.testFailedPrivateWriteLeavesNoStagedFile),

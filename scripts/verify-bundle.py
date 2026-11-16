@@ -17,10 +17,9 @@ expected = {'CFBundleIdentifier': 'com.baypeanut.Shelf', 'CFBundleName': 'Shelf'
 for key, value in expected.items():
     if info.get(key) != value:
         raise SystemExit(f'Unexpected bundle value: {key}')
-if any(key in info for key in ('SUFeedURL', 'SUPublicEDKey')) or any(key.endswith('UpdateRepository') for key in info):
-    raise SystemExit('Unconfigured update identity must not be packaged')
-if any(info.get(key) is not False for key in ('SUEnableAutomaticChecks', 'SUAutomaticallyUpdate', 'SUAllowsAutomaticUpdates')):
-    raise SystemExit('Updater must be disabled')
+# Shelf has no in-app updater, so no update feed, key or preference belongs here.
+if any(key.startswith('SU') or key.endswith('UpdateRepository') for key in info):
+    raise SystemExit('Update settings must not be packaged')
 resources = app / 'Contents/Resources'
 for filename in ('Shelf.icns', 'DEPENDENCIES.md',
                  'PRIVACY.md', 'SECURITY.md', 'PrivacyInfo.xcprivacy', 'en.lproj/Localizable.strings',
@@ -44,7 +43,7 @@ executable = app / 'Contents/MacOS/Shelf'
 subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
 linked = subprocess.check_output(['otool', '-L', str(executable)], text=True)
 if 'Sparkle.framework/' in linked or (app / 'Contents/Frameworks/Sparkle.framework').exists():
-    raise SystemExit('The disabled updater must not introduce a startup dependency')
+    raise SystemExit('An updater framework must not be packaged')
 if any('/Users/' in dependency for dependency in linked.splitlines()[1:]):
     raise SystemExit('Executable depends on a personal build path')
 commands = subprocess.check_output(['otool', '-l', str(executable)], text=True)

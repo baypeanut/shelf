@@ -65,7 +65,6 @@ info = {
     'CFBundleDevelopmentRegion': 'en', 'CFBundleLocalizations': languages,
     'LSMinimumSystemVersion': '14.0', 'LSUIElement': True,
     'NSHighResolutionCapable': True, 'LSApplicationCategoryType': 'public.app-category.productivity',
-    'SUEnableAutomaticChecks': False, 'SUAutomaticallyUpdate': False, 'SUAllowsAutomaticUpdates': False,
     'NSDesktopFolderUsageDescription': 'Shelf reads images only from screenshot folders you choose.',
     'NSDocumentsFolderUsageDescription': 'Shelf reads images only from folders you choose.',
     'NSDownloadsFolderUsageDescription': 'Shelf reads images only from folders you choose.',

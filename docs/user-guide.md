@@ -36,4 +36,4 @@ Use Shift + S to search the shelves, or open Library and use Command + F to sear
 
 ## Set a history window
 
-**Settings → History** provides separate retention choices for images, texts and links. Unsaved copies expire to recoverable Library Trash. Saved items and original files are kept. See [Troubleshooting](troubleshooting.md) for capture and search checks.
+**Settings → History** provides separate retention choices for images, texts and links. Unsaved copies expire to recoverable Library Trash. Saved items and original files are kept. **Items in Trash** sets how long Trash keeps them, 30 days by default, before they are permanently deleted; choose **Keep until Trash is emptied** to delete only by hand. A new period applies at the next cleanup, not at the moment you pick it. See [Troubleshooting](troubleshooting.md) for capture and search checks.

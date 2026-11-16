@@ -9,7 +9,7 @@ The review covers clipboard admission, local persistence, file handling, optiona
 - Text input is limited to 1 MiB. Image input is limited to 32 MiB and 40 million pixels before conversion.
 - Managed directories use mode 0700 and files use mode 0600. Descriptor-based writes reject symbolic links, pin the intended directory and clean up incomplete captures.
 - SQLite uses bound values, foreign keys, integrity checks and transactions. Backups include committed WAL data. Corrupt data blocks migration rather than becoming an empty Library.
-- History cleanup preserves pinned and organized items and uses recoverable Trash for owned files. Exports do not overwrite existing files or modify originals.
+- History cleanup preserves pinned and organized items and uses recoverable Trash for owned files. Only Library Trash older than its configured period, or an explicitly confirmed Empty Trash, deletes records permanently; freed database pages are overwritten. Exports do not overwrite existing files or modify originals.
 
 ## Network and updates
 

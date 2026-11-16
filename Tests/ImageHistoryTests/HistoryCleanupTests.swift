@@ -55,6 +55,33 @@ import XCTest
         }
         let records: [Record]; let scenarios: [Scenario]
     }
+    func testSharedTrashPeriodContractRunsAgainstActualStore() throws {
+        struct Contract: Decodable {
+            struct Case: Decodable { let id: String; let retentionDays: Int?; let daysInTrash: Double; let restored: Bool?; let emptyTrash: Bool?; let purged: Bool }
+            struct Trash: Decodable { let preferenceKey: String; let defaultDays: Int; let choices: [Int]; let neverValue: Int; let cases: [Case] }
+            let trash: Trash
+        }
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let trash = try JSONDecoder().decode(Contract.self, from: Data(contentsOf: root.appendingPathComponent("contracts/history-cleanup.json"))).trash
+        XCTAssertEqual(trash.preferenceKey, HistoryRetention.trashKey); XCTAssertEqual(trash.choices, HistoryRetention.trashDayChoices)
+        XCTAssertTrue(trash.choices.contains(trash.neverValue)); XCTAssertTrue(trash.choices.contains(trash.defaultDays))
+        for item in trash.cases {
+            let f = try SyntheticFixture(); defer { f.cleanup() }
+            let store = try LibraryStore(defaults: f.defaults, inbox: f.inbox, now: { f.date }, moveToTrash: fixtureTrash(f.folder))
+            XCTAssertEqual(HistoryRetention.trashDays(defaults: f.defaults), trash.defaultDays, item.id)
+            if let days = item.retentionDays { f.defaults.set(days, forKey: trash.preferenceKey) }
+            let original = try f.image(owned: false), bytes = try Data(contentsOf: original)
+            let image = try store.captureImage(original), text = try XCTUnwrap(store.captureText("Synthetic " + item.id))
+            let saved = try XCTUnwrap(store.captureText("Synthetic saved " + item.id)); try store.retain([saved.id])
+            try store.trash([image.id, text.id])
+            f.date = f.date.addingTimeInterval(item.daysInTrash * 86_400)
+            if item.restored == true { try store.restore([image.id, text.id]) }
+            if item.emptyTrash == true { try store.emptyTrash(asOf: try store.trashSnapshot().asOf) } else { try store.prune() }
+            for id in [image.id, text.id] { XCTAssertEqual(try store.item(id) == nil, item.purged, item.id) }
+            XCTAssertEqual(try store.item(saved.id)?.text, "Synthetic saved " + item.id, item.id)
+            XCTAssertEqual(try Data(contentsOf: original), bytes, item.id)
+        }
+    }
     func testSharedHistoryCleanupContractRunsAgainstActualStore() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let contract = try JSONDecoder().decode(Contract.self, from: Data(contentsOf: root.appendingPathComponent("contracts/history-cleanup.json")))

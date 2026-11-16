@@ -6,7 +6,11 @@ Shelf stores captured text, images, links, titles, pins, folders, tags, annotati
 
 The independent application uses bundle identifier `com.baypeanut.Shelf` and `~/Library/Application Support/Shelf/Screenshots/`. It does not import another application's history. The SQLite library and managed files are restricted to your user account. Shelf does not encrypt the database; macOS account protection, FileVault and backup policy remain relevant. Other software running as your user may access this data.
 
-Removing a shelf item can leave it in recoverable Library Trash. Pinned and organized records are retained. Deletion is not secure erasure of exports, originals, APFS snapshots or backups.
+Removing a shelf item can leave it in recoverable Library Trash. Pinned and organized records are retained.
+
+Library Trash is emptied in two ways. Items that have been in Trash longer than the period chosen in **Settings → History** (30 days by default, or never) are permanently deleted during routine cleanup, including items that were already older than that when this behavior first ran. **Empty Trash…** in Library deletes everything in Trash after a confirmation that states the count. Neither can be undone. The deleted records, their search entries and their folder and tag links are removed from the database and overwritten there; files Shelf created for those items move to the macOS Trash, where they stay until you empty it. Original files outside Shelf's storage are not touched.
+
+Permanent deletion is not secure erasure of exports, originals, the macOS Trash, APFS snapshots or backups, including the backup Shelf made when it first created the Library.
 
 ## Capture choices
 

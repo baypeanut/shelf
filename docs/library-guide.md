@@ -36,4 +36,10 @@ Choose **Export copies…** or press Command + Shift + E. Text exports as UTF-8 
 
 ## Recover a removal
 
-Move a selection to Trash through More or its browsing shortcut. In Library, Command + Z or Backspace can undo the latest recoverable move. To recover an older item, select it in Trash and choose **Restore**. Trash is not secure erasure of exports, original files or backups.
+Move a selection to Trash through More or its browsing shortcut. In Library, Command + Z or Backspace can undo the latest recoverable move. To recover an older item, select it in Trash and choose **Restore**.
+
+## Empty Trash
+
+Trash keeps an item for the period set under **Settings → History → Items in Trash**, 30 days by default, and then deletes it permanently. To delete everything in Trash now, open Trash and choose **Empty Trash…** from More, the item menu or Actions. The confirmation states how many items will go; items trashed after it appears are kept. Neither deletion can be undone, and Command + Z does not bring those items back.
+
+Files Shelf created for a deleted item move to the macOS Trash. Original files stay where they are. Emptying Trash is not secure erasure of exports, original files or backups.

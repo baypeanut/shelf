@@ -13,7 +13,7 @@ Shelf is a menu bar app for the images, text and links you copy. Open a shelf to
 - Keep useful items with pins, folders and tags.
 - Edit notes and annotate or crop images while preserving the originals.
 - Copy a selection, drag it into another app or export a copy.
-- Restore removed items from Library Trash.
+- Restore removed items from Library Trash, which is emptied after 30 days by default or on request.
 - Use keyboard shortcuts and a searchable Actions menu.
 - Enable optional offline visual search for image content.
 

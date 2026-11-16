@@ -132,6 +132,66 @@
       "trashed": []
     }
   ],
+  "trash": {
+    "preferenceKey": "trashRetentionDays",
+    "defaultDays": 30,
+    "choices": [
+      7,
+      30,
+      90,
+      0
+    ],
+    "neverValue": 0,
+    "cases": [
+      {
+        "id": "inside-default-period",
+        "daysInTrash": 29,
+        "purged": false
+      },
+      {
+        "id": "past-default-period",
+        "daysInTrash": 31,
+        "purged": true
+      },
+      {
+        "id": "past-short-period",
+        "retentionDays": 7,
+        "daysInTrash": 8,
+        "purged": true
+      },
+      {
+        "id": "inside-long-period",
+        "retentionDays": 90,
+        "daysInTrash": 60,
+        "purged": false
+      },
+      {
+        "id": "never",
+        "retentionDays": 0,
+        "daysInTrash": 4000,
+        "purged": false
+      },
+      {
+        "id": "unknown-value-uses-default",
+        "retentionDays": 12,
+        "daysInTrash": 29,
+        "purged": false
+      },
+      {
+        "id": "restored-before-cleanup",
+        "daysInTrash": 31,
+        "restored": true,
+        "purged": false
+      },
+      {
+        "id": "empty-trash-ignores-period",
+        "retentionDays": 0,
+        "daysInTrash": 1,
+        "emptyTrash": true,
+        "purged": true
+      }
+    ]
+  },
   "invariants": [
     "Preserve every saved record and all organization",
     "Preserve managed media and external originals",
@@ -139,6 +199,8 @@
     "One recoverable Trash transaction",
     "Cancel performs no writes",
     "Restoring Trash preserves identities and content",
+    "Only Trash older than its period, or a confirmed Empty Trash, deletes records permanently",
+    "Permanent deletion never touches saved records, live copies or external originals",
     "A recopy that reuses an existing item identity is outside an older confirmation"
   ]
 }

@@ -20,7 +20,7 @@ Check the current screenshot destination and Shelf folder access. For an additio
 
 ## Search returns nothing
 
-Clear the query, then check the sidebar scope, type filters and pinned-only state. Look in Library Trash if an item was removed or expired. Image-content search requires the optional model build, while text recognition is available in the default build.
+Clear the query, then check the sidebar scope, type filters and pinned-only state. Look in Library Trash if an item was removed or expired; Trash itself is emptied after the period set in **Settings → History**. Image-content search requires the optional model build, while text recognition is available in the default build.
 
 ## Direct paste fails
 

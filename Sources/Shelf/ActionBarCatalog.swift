@@ -31,6 +31,7 @@ enum ActionBarMenuAction: String, CaseIterable {
     case searchAll, searchText, searchVisual, daysAny, days7, days30
     case refreshLink, openFile, quickLook, revealFile, saveToDesktop, takeDownLeft, takeDownRight, trimVideo
     case resetZoom, markupUndo, markupRedo, markupDelete, markupClear, markupSave, markupFinish, markupStyles
+    case pauseCapture5Minutes, pauseCapture1Hour, pauseCaptureUntilResumed, resumeCapture, skipNextCopy, ignoreSourceApp
     case toggleLine, copyLatestImage, openScreenshotsFolder, releases, quit
 }
 
@@ -76,6 +77,11 @@ enum ActionBarMenuAction: String, CaseIterable {
         var hasLibraryFilters = false
         var canTakeDownLeft = false
         var canTakeDownRight = false
+        var capturePaused = false
+        var skipsNextCopy = false
+        /// The single selected item's recorded source application, if any.
+        var sourceAppName: String?
+        var sourceIgnored = false
 
         var isLibrary: Bool { origin == .library || origin == .libraryPreview }
         var isPreview: Bool { origin == .shelfPreview || origin == .libraryPreview }
@@ -115,6 +121,7 @@ enum ActionBarMenuAction: String, CaseIterable {
             var title = metadata.title
             if action == .toggleLine { title = c.lineRevealed ? L("Hide line") : L("Show line") }
             if action == .toggleInspector { title = c.libraryInspectorVisible ? L("Hide details") : L("Show details") }
+            if action == .ignoreSourceApp, c.singleSelection, let name = c.sourceAppName { title = String(format: L("Ignore copies from %@"), name) }
             result.append(Entry(action: semantic, command: .init(id: semantic.id, title: title,
                 keyHint: action == .newNote ? bindings.title(.newNote, in: .library) : action == .newFolder ? bindings.title(.newFolder, in: .library) : menuHint(action, c), systemImage: metadata.symbol,
                 isEnabled: availability.0, group: metadata.group, keywords: metadata.keywords,
@@ -397,6 +404,12 @@ enum ActionBarMenuAction: String, CaseIterable {
         case .markupClear: return require(c.isMarkupEditing && c.hasAnnotations, L("No annotations to clear"))
         case .markupSave, .markupFinish: return require(c.isMarkupEditing, L("Start image markup first"))
         case .copyLatestImage: return require(c.hasLatestImage, L("No images on the line"))
+        case .pauseCapture5Minutes, .pauseCapture1Hour, .pauseCaptureUntilResumed, .skipNextCopy:
+            return require(!c.capturePaused, L("Clipboard capture is paused"))
+        case .resumeCapture: return require(c.capturePaused, L("Clipboard capture is not paused"))
+        case .ignoreSourceApp:
+            guard c.singleSelection, c.sourceAppName != nil else { return (false, L("Select one item with a recorded source app first")) }
+            return require(!c.sourceIgnored, L("Copies from this app are already ignored"))
         case .clearUnsavedHistory, .emptyTrash: return require(c.libraryAvailable, L("Library unavailable"))
         case .settings, .settingsGeneral, .settingsHistory, .settingsSources, .settingsShortcuts, .settingsAbout,
              .toggleLine, .openScreenshotsFolder, .releases, .quit: return (true, "")
@@ -419,6 +432,7 @@ enum ActionBarMenuAction: String, CaseIterable {
     }
 
     private static func menuActive(_ action: ActionBarMenuAction, _ c: Context) -> Bool {
+        if action == .skipNextCopy { return c.skipsNextCopy }
         guard c.isLibrary else { return false }
         switch action {
         case .scopeSaved: return c.libraryScope == .saved
@@ -507,6 +521,12 @@ enum ActionBarMenuAction: String, CaseIterable {
         case .markupSave: return (L("Save") + " · " + L("Image markup"), markup, "square.and.arrow.down", ["save", "markup", "kaydet", "işaretleme"])
         case .markupFinish: return (L("Done") + " · " + L("Image markup"), markup, "checkmark", ["done", "finish", "markup", "bitti", "tamamla", "işaretleme"])
         case .markupStyles: return (L("Annotation style"), markup, "slider.horizontal.3", ["style", "color", "width", "fill", "font", "annotation", "stil", "renk", "kalınlık", "dolgu", "yazı", "işaretleme"])
+        case .pauseCapture5Minutes: return (L("Pause clipboard capture") + ": " + L("For 5 minutes"), app, "pause.circle", ["pause", "capture", "clipboard", "private", "stop", "duraklat", "yakalama", "pano", "gizli"])
+        case .pauseCapture1Hour: return (L("Pause clipboard capture") + ": " + L("For 1 hour"), app, "pause.circle", ["pause", "capture", "clipboard", "private", "stop", "duraklat", "yakalama", "pano", "gizli"])
+        case .pauseCaptureUntilResumed: return (L("Pause clipboard capture") + ": " + L("Until I resume"), app, "pause.circle", ["pause", "capture", "clipboard", "private", "stop", "duraklat", "yakalama", "pano", "gizli"])
+        case .resumeCapture: return (L("Resume capture"), app, "play.circle", ["resume", "capture", "clipboard", "continue", "sürdür", "devam", "yakalama", "pano"])
+        case .skipNextCopy: return (L("Skip next copy"), app, "forward.end", ["skip", "next", "copy", "ignore", "once", "atla", "sonraki", "kopya", "yok say"])
+        case .ignoreSourceApp: return (L("Ignore copies from the source app"), L("Selected item"), "nosign", ["ignore", "exclude", "app", "source", "blocklist", "yok say", "hariç", "uygulama", "kaynak"])
         case .toggleLine: return (L("Show line"), app, "rectangle.3.group", ["show", "hide", "shelf", "line", "göster", "gizle", "askı"])
         case .copyLatestImage: return (L("Copy latest image"), app, "doc.on.doc", ["copy", "latest", "image", "kopyala", "son", "görsel"])
         case .openScreenshotsFolder: return (L("Open screenshots folder"), app, "folder", ["screenshots", "folder", "open", "ekran görüntüsü", "klasör", "aç"])

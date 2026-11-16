@@ -56,6 +56,7 @@ import Combine
     private func showEmpty() {
         guard let window, flush() else { return }
         generation += 1; let token = generation
+        window.subtitle = ""
         let preview = EmptyShelfPreview(window: window, keyboardBindings: model.keyboardBindings, message: L("No matching items"), undoAction: .undoTrash)
         preview.onUndo = { [weak model] in model?.undoTrash() }
         preview.onKey = { [weak self] event in
@@ -162,6 +163,7 @@ import Combine
         link?.replace(record)
         if let base = record.markupSourceURL, let rendered = record.fileURL { image?.updateMarkupSource(base, renderedURL: rendered) }
         let position = "\(index != nil ? String(currentIndex + 1) : "-") / \(model.ids.count)"
+        window?.subtitle = record.sourceCaption ?? ""
         image?.controls.update(position: position, pinned: record.favorite); text?.controls.update(position: position, pinned: record.favorite); link?.controls.update(position: position, pinned: record.favorite)
     }
     private func handle(_ event: NSEvent) -> Bool {

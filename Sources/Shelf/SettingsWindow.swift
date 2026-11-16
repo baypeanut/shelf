@@ -9,6 +9,7 @@ enum AppIdentity {
     static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Development" }
     static var build: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "-" }
     static var statusSymbol: String { "square.stack.3d.up" }
+    static var pausedStatusSymbol: String { "square.stack.3d.up.slash.fill" }
 }
 
 /// Every control uses the same operation as the original menu. Reading or
@@ -43,12 +44,17 @@ final class SettingsModel: ObservableObject {
     var clearHistory: (LibraryKind?) -> Void = { _ in }
     var reopenForLanguage: () -> Void = {}
     let languageDefaults: UserDefaults
+    let capture: CaptureControl
+    /// The open panel is replaced in tests.
+    var chooseIgnoredApp: @MainActor () -> SourceApp? = SourceApps.choose
+    var runningApps: @MainActor () -> [SourceApp] = SourceApps.running
     private let launchLanguage: String
     private let pastePermissionGranted: () -> Bool
 
     init(line: Line, allowsSystemChanges: Bool = true, languageDefaults: UserDefaults = .standard,
-         pastePermissionGranted: @escaping () -> Bool = { AXIsProcessTrusted() }) {
+         pastePermissionGranted: @escaping () -> Bool = { AXIsProcessTrusted() }, capture: CaptureControl? = nil) {
         self.line = line; self.allowsSystemChanges = allowsSystemChanges
+        self.capture = capture ?? .shared
         self.languageDefaults = languageDefaults; launchLanguage = LanguagePreferences.selection(languageDefaults)
         self.pastePermissionGranted = pastePermissionGranted
     }
@@ -59,6 +65,9 @@ final class SettingsModel: ObservableObject {
     var needsPastePermission: Bool { !pastePermissionGranted() }
 
     func refresh() { objectWillChange.send() }
+    func addIgnoredApp() { if let app = chooseIgnoredApp() { capture.ignore(app.bundleID) }; refresh() }
+    /// Running applications that are not ignored yet.
+    var ignorableRunningApps: [SourceApp] { runningApps().filter { !capture.isIgnored($0.bundleID) } }
     func binding<Value>(get: @escaping () -> Value, set: @escaping (Value) -> Void) -> Binding<Value> {
         Binding(get: { get() }, set: { [weak self] value in set(value); self?.refresh() })
     }
@@ -237,6 +246,30 @@ private struct SettingsView: View {
                 Toggle(L("Capture copied links"), isOn: model.binding(get: { LinkHistory.isEnabled }, set: model.setLinks))
             } header: { Text(L("Clipboard")) } footer: {
                 Text(L("Copies are saved locally. Text and link capture is silent. A single web address goes to Links; paragraphs stay as text."))
+            }
+            Section {
+                ForEach(model.capture.ignoredBundleIDs, id: \.self) { bundleID in
+                    HStack {
+                        SourceAppIcon(bundleID: bundleID, size: 22)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(SourceApps.name(forBundleID: bundleID) ?? bundleID)
+                            Text(bundleID).font(.caption).foregroundStyle(.secondary).lineLimit(1).textSelection(.enabled)
+                        }
+                        Spacer()
+                        Button { model.capture.stopIgnoring(bundleID); model.refresh() } label: { Image(systemName: "minus.circle") }
+                            .accessibilityLabel(L("Stop ignoring") + ": " + (SourceApps.name(forBundleID: bundleID) ?? bundleID))
+                    }.accessibilityElement(children: .contain)
+                }
+                HStack {
+                    Button(L("Add App…"), action: model.addIgnoredApp).accessibilityIdentifier("ignored-apps-add")
+                    Menu(L("Add a running app")) {
+                        ForEach(model.ignorableRunningApps, id: \.bundleID) { app in
+                            Button(app.name) { model.capture.ignore(app.bundleID); model.refresh() }
+                        }
+                    }.fixedSize().disabled(model.ignorableRunningApps.isEmpty).accessibilityIdentifier("ignored-apps-running")
+                }
+            } header: { Text(L("Ignored apps")) } footer: {
+                Text(L("Copies made in these apps are never captured. The app is the one a copy names as its source, or else the app in front when the copy is noticed."))
             }
             Section {
                 Toggle(L("Fetch link titles and thumbnails"), isOn: model.binding(get: { LinkMetadataService.isEnabled }, set: model.setMetadata))

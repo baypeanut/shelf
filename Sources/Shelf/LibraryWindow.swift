@@ -340,11 +340,14 @@ final class LibraryNativeWindow: NSWindow {
             if model.query.scope == .recent {
                 Text(historyHint).font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 7)
             }
-            if !model.query.tagIDs.isEmpty || model.query.days != nil || !model.query.domain.isEmpty {
+            if !model.query.tagIDs.isEmpty || model.query.days != nil || !model.query.domain.isEmpty || !model.query.sourceBundleID.isEmpty {
                 HStack {
                     Label(L("Filtered view"), systemImage: "line.3.horizontal.decrease").font(.caption).foregroundStyle(.secondary)
                     ForEach(model.tags.filter { model.query.tagIDs.contains($0.id) }) { tag in Button("#" + tag.name + " ×") { model.toggleTagFilter(tag.id) }.controlSize(.mini) }
                     if !model.query.domain.isEmpty { Text(model.query.domain).font(.caption).lineLimit(1) }
+                    if !model.query.sourceBundleID.isEmpty {
+                        Button((model.sources.first { $0.bundleID.caseInsensitiveCompare(model.query.sourceBundleID) == .orderedSame }?.name ?? model.query.sourceBundleID) + " ×") { model.setSource("") }.controlSize(.mini)
+                    }
                     Spacer()
                 }.padding(.horizontal, 20).padding(.vertical, 6)
             }
@@ -397,6 +400,13 @@ final class LibraryNativeWindow: NSWindow {
             }
             TextField(L("Domain, e.g. youtube.com"), text: $domain).onSubmit { model.setDomain(domain) }
             Button(L("Apply domain")) { model.setDomain(domain) }
+            if !model.sources.isEmpty || !model.query.sourceBundleID.isEmpty {
+                Picker(L("Copied from"), selection: Binding(get: { model.query.sourceBundleID }, set: { model.setSource($0) })) {
+                    Text(L("Any app")).tag("")
+                    ForEach(model.sources, id: \.bundleID) { Text($0.name).tag($0.bundleID) }
+                    if !model.query.sourceBundleID.isEmpty, !model.sources.contains(where: { $0.bundleID == model.query.sourceBundleID }) { Text(model.query.sourceBundleID).tag(model.query.sourceBundleID) }
+                }.accessibilityIdentifier("library-filter-source")
+            }
             if !model.tags.isEmpty {
                 Text(L("Tags (match all)")).font(.caption).foregroundStyle(.secondary)
                 ScrollView { VStack(alignment: .leading) { ForEach(model.tags) { tag in Toggle("#" + tag.name, isOn: Binding(get: { model.query.tagIDs.contains(tag.id) }, set: { _ in model.toggleTagFilter(tag.id) })) } } }.frame(maxHeight: 150)
@@ -454,6 +464,17 @@ final class LibraryNativeWindow: NSWindow {
                     }
                     VStack(alignment: .leading, spacing: 7) { Text(L("Note")).font(.caption.weight(.semibold)).foregroundStyle(.secondary); TextEditor(text: $model.draftNote).font(.system(size: 12)).scrollContentBackground(.hidden).frame(height: 100).padding(8).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8)).accessibilityLabel(L("Note")).accessibilityIdentifier("library-detail-note") }
                     Text(record.createdAt, style: .date).font(.caption).foregroundStyle(.secondary)
+                    if let source = record.source {
+                        HStack(spacing: 6) {
+                            SourceAppIcon(bundleID: source.bundleID)
+                            Text(record.sourceCaption ?? source.name).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            Spacer()
+                            Menu {
+                                Button(L("Show copies from this app")) { model.setSource(source.bundleID) }
+                                Button(String(format: L("Ignore copies from %@"), source.name)) { model.onIgnoreSourceRequested?(source) }.disabled(model.isSourceIgnored(source.bundleID))
+                            } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).fixedSize().accessibilityLabel(L("Source app"))
+                        }.accessibilityElement(children: .contain).accessibilityIdentifier("library-detail-source")
+                    }
                     if record.deletedAt != nil { Button(L("Restore")) { model.restore() } }
                     else {
                         if record.retainedAt == nil { Button(L("Save to library")) { model.retain() } }

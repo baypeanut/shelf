@@ -32,6 +32,41 @@ import XCTest
         XCTAssertEqual(entries.first?.action, .keyboard(.searchShelf))
     }
 
+    func testCatalogOffersPauseResumeSkipAndIgnoreSourceWithTheirState() throws {
+        let fixture = try SyntheticFixture(); defer { fixture.cleanup() }
+        let bindings = KeyboardBindings(defaults: fixture.defaults)
+        var context = ActionBarCatalog.Context(); context.origin = .application
+        let pauses: [ActionBarMenuAction] = [.pauseCapture5Minutes, .pauseCapture1Hour, .pauseCaptureUntilResumed]
+        XCTAssertEqual(try pauses.map { try command(.menu($0), context: context, bindings: bindings).title },
+            [L("For 5 minutes"), L("For 1 hour"), L("Until I resume")].map { L("Pause clipboard capture") + ": " + $0 })
+        for action in pauses + [.skipNextCopy] { XCTAssertTrue(try command(.menu(action), context: context, bindings: bindings).isEnabled) }
+        let resume = try command(.menu(.resumeCapture), context: context, bindings: bindings)
+        XCTAssertFalse(resume.isEnabled); XCTAssertEqual(resume.disabledReason, L("Clipboard capture is not paused"))
+        XCTAssertFalse(try command(.menu(.skipNextCopy), context: context, bindings: bindings).isActive)
+        XCTAssertTrue(try (pauses + [.resumeCapture, .skipNextCopy]).allSatisfy { try command(.menu($0), context: context, bindings: bindings).keyHint.isEmpty })
+
+        context.skipsNextCopy = true
+        XCTAssertTrue(try command(.menu(.skipNextCopy), context: context, bindings: bindings).isActive)
+        context.skipsNextCopy = false; context.capturePaused = true
+        XCTAssertTrue(try command(.menu(.resumeCapture), context: context, bindings: bindings).isEnabled)
+        for action in pauses + [.skipNextCopy] {
+            let paused = try command(.menu(action), context: context, bindings: bindings)
+            XCTAssertFalse(paused.isEnabled); XCTAssertEqual(paused.disabledReason, L("Clipboard capture is paused"))
+        }
+
+        var ignore = try command(.menu(.ignoreSourceApp), context: context, bindings: bindings)
+        XCTAssertEqual(ignore.title, L("Ignore copies from the source app")); XCTAssertFalse(ignore.isEnabled)
+        XCTAssertEqual(ignore.disabledReason, L("Select one item with a recorded source app first"))
+        context.origin = .line; context.selectedCount = 1; context.kind = .text; context.sourceAppName = "Editor"
+        ignore = try command(.menu(.ignoreSourceApp), context: context, bindings: bindings)
+        XCTAssertEqual(ignore.title, String(format: L("Ignore copies from %@"), "Editor")); XCTAssertTrue(ignore.isEnabled)
+        context.sourceIgnored = true
+        ignore = try command(.menu(.ignoreSourceApp), context: context, bindings: bindings)
+        XCTAssertFalse(ignore.isEnabled); XCTAssertEqual(ignore.disabledReason, L("Copies from this app are already ignored"))
+        context.sourceIgnored = false; context.selectedCount = 2
+        XCTAssertFalse(try command(.menu(.ignoreSourceApp), context: context, bindings: bindings).isEnabled)
+    }
+
     func testCatalogEnablesDirectImageToolsAndTextEditingForCorrectSelectedKind() throws {
         let fixture = try SyntheticFixture(); defer { fixture.cleanup() }
         let bindings = KeyboardBindings(defaults: fixture.defaults)

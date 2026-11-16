@@ -202,6 +202,9 @@ private final class LibraryNativeTable: NSTableView {
         for folder in model.collections { folders.addItem(ClosureMenuItem(folder.name) { [weak model] in model?.assign(folder.id) }) }
         if !model.collections.isEmpty { let item = NSMenuItem(title: L("Add to folder"), action: nil, keyEquivalent: ""); item.submenu = folders; menu.addItem(item) }
         menu.addItem(ClosureMenuItem(L("Export copies…")) { [weak model] in model?.onExportRequested?() })
+        if model.selectedIDs.count <= 1, let source = (try? model.store.item(id))?.source, !model.isSourceIgnored(source.bundleID) {
+            menu.addItem(ClosureMenuItem(String(format: L("Ignore copies from %@"), source.name)) { [weak model] in model?.onIgnoreSourceRequested?(source) })
+        }
         menu.addItem(.separator())
         if model.query.scope == .trash {
             menu.addItem(ClosureMenuItem(L("Restore")) { [weak model] in model?.restore() })

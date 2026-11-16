@@ -11,6 +11,8 @@ import Combine
     @Published private(set) var focusedID: UUID?
     @Published private(set) var collections = [LibraryCollection]()
     @Published private(set) var tags = [LibraryTag]()
+    /// Applications that live items were copied from, for the source filter.
+    @Published private(set) var sources = [SourceApp]()
     @Published private(set) var loading = false
     @Published private(set) var notice: String?
     @Published private(set) var copiedIDs = Set<UUID>()
@@ -53,6 +55,8 @@ import Combine
     var onExportRequested: (() -> Void)?
     var onTrashRequested: (() -> Void)?
     var onEmptyTrashRequested: (() -> Void)?
+    var isSourceIgnored: (String) -> Bool = { _ in false }
+    var onIgnoreSourceRequested: ((SourceApp) -> Void)?
     var onCloseRequested: (() -> Void)?
     var onFlushPreview: () -> Bool = { true }
     private var flushingPreview = false
@@ -189,10 +193,11 @@ import Combine
     }
     func setDays(_ value: Int?) { guard flushEdits() else { return }; query.days = value; reload(reset: true) }
     func setDomain(_ value: String) { guard flushEdits() else { return }; query.domain = value.trimmingCharacters(in: .whitespacesAndNewlines); reload(reset: true) }
+    func setSource(_ bundleID: String) { guard flushEdits() else { return }; query.sourceBundleID = bundleID; reload(reset: true) }
     func toggleTagFilter(_ id: UUID) { guard flushEdits() else { return }; if !query.tagIDs.insert(id).inserted { query.tagIDs.remove(id) }; reload(reset: true) }
     func clearFilters() {
         guard flushEdits() else { return }
-        query.kind = nil; query.favoritesOnly = false; query.tagIDs.removeAll(); query.days = nil; query.domain = ""
+        query.kind = nil; query.favoritesOnly = false; query.tagIDs.removeAll(); query.days = nil; query.domain = ""; query.sourceBundleID = ""
         search = ""; applyPendingSearch(); pendingQuery?.cancel(); pendingQuery = nil
         query.searchMode = .all; reload(reset: true)
     }
@@ -241,6 +246,8 @@ import Combine
             let folders = try store.collections(), labels = try store.tags()
             if collections != folders { collections = folders }
             if tags != labels { tags = labels }
+            let apps = try store.sourceApps()
+            if sources != apps { sources = apps }
         } catch { notice = error.localizedDescription }
         store.resolveImageSearch(query) { [weak self] resolved in
           guard let self, generation == self.queryGeneration else { return }

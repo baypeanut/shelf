@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let startupError: String?
     private let isolatedCopyBoard: NSPasteboard?
     private let ownsKeyboardFocus: @MainActor () -> Bool
+    let capture: CaptureControl
 
     override init() {
         do { line = Line(library: try LibraryStore(defaults: .standard, inbox: Inbox.folder), pruneOnLoad: false); startupError = nil }
@@ -33,14 +34,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             line = Line(defaults: UserDefaults(suiteName: "com.baypeanut.Shelf.recovery")!, inbox: Inbox.folder.appendingPathComponent("Recovery"), breeze: false, pruneOnLoad: false)
         }
         clipboardSource = nil; watchesFiles = true
+        capture = .shared
         isolatedCopyBoard = nil
         ownsKeyboardFocus = { NSApp?.keyWindow != nil }
         directPaste = DirectPasteCoordinator()
         super.init()
     }
 
-    init(line: Line, clipboardSource: (any ClipboardSource)? = nil, watchesFiles: Bool = true, copyPasteboard: NSPasteboard? = nil, directPaste: DirectPasteCoordinator? = nil, ownsKeyboardFocus: (@MainActor () -> Bool)? = nil) {
+    init(line: Line, clipboardSource: (any ClipboardSource)? = nil, watchesFiles: Bool = true, copyPasteboard: NSPasteboard? = nil, directPaste: DirectPasteCoordinator? = nil, ownsKeyboardFocus: (@MainActor () -> Bool)? = nil, capture: CaptureControl? = nil) {
         self.line = line
+        // A synthetic clipboard has no frontmost application to attribute.
+        self.capture = capture ?? CaptureControl(frontmost: { nil }, appName: { _ in nil })
         startupError = nil
         isolatedCopyBoard = copyPasteboard
         self.directPaste = directPaste ?? DirectPasteCoordinator()
@@ -68,9 +72,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var safetyWatcher: ScreenshotWatcher?
     private var folderWatchers: [ScreenshotWatcher] = []
     private lazy var clipboardWatcher: ClipboardWatcher = {
-        let callback: (URL) -> Void = { [weak self] in self?.hangCapture($0) }
-        if let clipboardSource { return ClipboardWatcher(source: clipboardSource, folder: line.historyFiles.inbox, onImage: callback) }
-        return ClipboardWatcher(onImage: callback)
+        let callback: (URL) -> Void = { [weak self] in self?.hangCapture($0, source: self?.clipboardWatcher.admittedSource) }
+        if let clipboardSource { return ClipboardWatcher(source: clipboardSource, folder: line.historyFiles.inbox, capture: capture, onImage: callback) }
+        return ClipboardWatcher(capture: capture, onImage: callback)
     }()
     private var signalSources: [DispatchSourceSignal] = []
     private var hotKey: HotKey?
@@ -102,11 +106,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let callback: (String) -> Void = { [weak self] text in
             // Text capture only changes data. It never reveals the shelf,
             // changes the active shelf, or requests keyboard focus.
-            self?.receiveCopiedText(text)
+            self?.receiveCopiedText(text, source: self?.textWatcher.admittedSource)
         }
-        let link: (URL) -> Void = { [weak self] url in if let record = self?.line.links.add(url) { self?.metadataService?.request([record.id]) } }
-        if let clipboardSource { return TextClipboardWatcher(source: clipboardSource, onText: callback, onLink: link, capturesText: { TextClipboardWatcher.isEnabled }, capturesLinks: { LinkHistory.isEnabled }) }
-        return TextClipboardWatcher(onText: callback, onLink: link, capturesText: { TextClipboardWatcher.isEnabled }, capturesLinks: { LinkHistory.isEnabled })
+        let link: (URL) -> Void = { [weak self] url in if let record = self?.line.links.add(url, source: self?.textWatcher.admittedSource) { self?.metadataService?.request([record.id]) } }
+        if let clipboardSource { return TextClipboardWatcher(source: clipboardSource, capture: capture, onText: callback, onLink: link, capturesText: { TextClipboardWatcher.isEnabled }, capturesLinks: { LinkHistory.isEnabled }) }
+        return TextClipboardWatcher(capture: capture, onText: callback, onLink: link, capturesText: { TextClipboardWatcher.isEnabled }, capturesLinks: { LinkHistory.isEnabled })
     }()
     private var shortcutRecorder: ShortcutRecorder?
     private var shortcutRestoreWarning: String?
@@ -240,6 +244,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         if ClipboardWatcher.isEnabled { clipboardWatcher.start() }
         refreshTextSources()
+        capture.onChange = { [weak self] in self?.updateStatusIcon(); self?.settingsController?.model.refresh() }
+        capture.onResume = { [weak self] in self?.clipboardWatcher.skipCurrent(); self?.textWatcher.skipCurrent() }
+        capture.scheduleExpiry()
 
         registerShortcut()
 
@@ -487,19 +494,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// A new screenshot lifts off from where it was taken and flies to its
     /// place on the line. Without a known capture area it simply drops in.
-    private func hangCapture(_ url: URL) {
+    private func hangCapture(_ url: URL, source: SourceApp? = nil) {
         guard line.presentation.shelves.contains(.images) else {
-            line.hang(url)
+            line.hang(url, source: source)
             return
         }
         if !isRevealed && Self.peeksAtNew && !isPasting {
-            withPasteTargetForFocusHandoff { presentCapture(url) }
+            withPasteTargetForFocusHandoff { presentCapture(url, source: source) }
         } else {
-            presentCapture(url)
+            presentCapture(url, source: source)
         }
     }
 
-    private func presentCapture(_ url: URL) {
+    private func presentCapture(_ url: URL, source: SourceApp?) {
         let from = captureRect(of: url)
         let screen = from.flatMap { from in
             NSScreen.screens.first { NSMouseInRect(CGPoint(x: from.midX, y: from.midY), $0.frame, false) }
@@ -509,7 +516,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // the new one flies in.
         let wasRevealed = isRevealed
         comeDown(on: screen)
-        guard let id = line.hang(url, flying: from != nil) else {
+        guard let id = line.hang(url, flying: from != nil, source: source) else {
             // Nothing hung after all, so an empty line goes away again.
             itemsChanged()
             return
@@ -895,12 +902,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func updateStatusIcon() {
         let on = ClipboardWatcher.isEnabled || TextClipboardWatcher.isEnabled || LinkHistory.isEnabled
         let summary = StatusSummary(line: line)
-        if let symbol = NSImage(systemSymbolName: AppIdentity.statusSymbol + (on ? ".fill" : ""), accessibilityDescription: AppIdentity.name) {
+        // A pause replaces the stack with its struck-through variant, whatever is hung.
+        let paused = CaptureMenu.status(capture)
+        let name = paused != nil ? AppIdentity.pausedStatusSymbol : AppIdentity.statusSymbol + (on ? ".fill" : "")
+        if let symbol = NSImage(systemSymbolName: name, accessibilityDescription: AppIdentity.name) {
             statusItem?.button?.image = summary.image(symbol: symbol)
         }
-        statusItem?.button?.appearsDisabled = summary.count == 0
-        statusItem?.button?.toolTip = [AppIdentity.name, summary.description].joined(separator: "\n")
-        statusItem?.button?.setAccessibilityLabel([AppIdentity.name, summary.description].joined(separator: ", "))
+        statusItem?.button?.appearsDisabled = summary.count == 0 && paused == nil
+        let lines = [AppIdentity.name, paused, summary.description].compactMap { $0 }
+        statusItem?.button?.toolTip = lines.joined(separator: "\n")
+        statusItem?.button?.setAccessibilityLabel(lines.joined(separator: ", "))
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -928,6 +939,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let self else { return }
             NSWorkspace.shared.open(self.watcher?.folder ?? self.line.historyFiles.inbox)
         })
+        if startupError == nil {
+            menu.addItem(.separator())
+            CaptureMenu.items(capture).forEach(menu.addItem)
+        }
         menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(L("Settings…"), key: ",") { [weak self] in self?.showSettings() })
         menu.addItem(.separator())
@@ -946,7 +961,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard startupError == nil else { showStartupFailure(); return }
         capturePasteTarget()
         if settingsController == nil {
-            let model = SettingsModel(line: line, allowsSystemChanges: watchesFiles)
+            let model = SettingsModel(line: line, allowsSystemChanges: watchesFiles, capture: capture)
             model.shortcutWarning = shortcutRestoreWarning
             model.onCommands = { [weak self] in self?.showCommands(origin: .application) }
             model.setSize = { [weak self] in self?.setSize($0) }
@@ -997,7 +1012,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         textWatcher.skipCurrent()
         if TextClipboardWatcher.isEnabled || LinkHistory.isEnabled { textWatcher.start() } else { textWatcher.stop() }
     }
-    func receiveCopiedText(_ text: String) { _ = line.texts.add(text) }
+    func receiveCopiedText(_ text: String, source: SourceApp? = nil) { _ = line.texts.add(text, source: source) }
     func showLibrary() {
         guard let store = line.library, flushPreviewEdits() else { return }
         capturePasteTarget()
@@ -1012,10 +1027,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             controller.model.onImageTextCopyRequested = { [weak self] in self?.copyImageText($0) }
             controller.model.onCommandsRequested = { [weak self] in self?.showCommands() }
             controller.model.onEmptyTrashRequested = { [weak self] in self?.confirmEmptyTrash() }
+            controller.model.isSourceIgnored = { [weak self] in self?.capture.isIgnored($0) ?? false }
+            controller.model.onIgnoreSourceRequested = { [weak self] in self?.ignoreSource($0) }
             libraryController = controller
         }
         closePreview(); if isRevealed { setRevealed(false, restoreApplication: false) }
         libraryController?.present()
+    }
+    /// The Actions catalog and the Library both end here.
+    private func ignoreSource(_ source: SourceApp) {
+        capture.ignore(source.bundleID)
+        reportActionStatus(String(format: L("Copies from %@ will not be captured"), source.name))
     }
     private func recordContextShortcut(_ action: KeyboardAction) {
         shortcutRecorder?.window.close()
@@ -1163,6 +1185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         previewWindow = (image?.window ?? text?.window ?? link?.window) as? ActionPreviewPanel
         previewWindow?.onBeforeMouseKeyFocus = { [weak self] in self?.capturePasteTarget() }
         previewSession = session; previewDisplayedID = id
+        showPreviewSource(id)
         wirePreviewControls(controls, session: session)
         return true
     }
@@ -1238,6 +1261,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let message = unavailable ? L("File could not be read or safely saved") : L("No matching items")
         if let emptyPreview { emptyPreview.message.stringValue = message; return }
         guard let window = previewWindow else { return }
+        window.subtitle = ""
         let empty = EmptyShelfPreview(window: window, keyboardBindings: line.keyboardBindings, message: message)
         empty.onKey = { [weak self] in self?.handlePreviewKey($0, session: session) ?? false }
         empty.onUndo = { [weak self] in self?.undoPreviewRemoval(session) }
@@ -1294,6 +1318,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             preview?.controls.update(position: session.position, pinned: session.pinned)
         }
         previewDisplayedID = session.currentID
+        showPreviewSource(session.currentID)
+    }
+    /// The titlebar names the application the previewed item was copied from.
+    private func showPreviewSource(_ id: UUID) {
+        previewWindow?.subtitle = (try? line.library?.item(id))?.sourceCaption ?? ""
     }
     private func closePreview() { if flushPreviewEdits() { previewWindow?.close() } }
     /// Editing can remove a note from the search results while its saved
@@ -1602,6 +1631,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         value.hasFile = record?.fileURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
         value.isRecording = record?.fileURL.map(isRecordingFile) ?? false
         value.isDeleted = !records.isEmpty && records.allSatisfy { $0.deletedAt != nil }
+        value.capturePaused = capture.isPaused; value.skipsNextCopy = capture.skipsNextCopy
+        value.sourceAppName = record?.source?.name
+        value.sourceIgnored = record?.source.map { capture.isIgnored($0.bundleID) } ?? false
         value.allPinned = !records.isEmpty && records.allSatisfy(\.favorite)
         value.hasLatestImage = line.newestID != nil
         value.globalToggleHint = Shortcut.current?.display ?? ""; value.copyLatestHint = line.copyLatestShortcut?.title ?? ""
@@ -1843,6 +1875,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .markupSave: markup(.save)
         case .markupFinish: markup(.finishEditing)
         case .markupStyles: markup(.styles)
+        case .pauseCapture5Minutes: capture.pause(for: 300)
+        case .pauseCapture1Hour: capture.pause(for: 3600)
+        case .pauseCaptureUntilResumed: capture.pause(for: nil)
+        case .resumeCapture: capture.resume()
+        case .skipNextCopy: capture.setSkipsNextCopy(!capture.skipsNextCopy)
+        case .ignoreSourceApp:
+            if let id = snapshot.singleID, let source = (try? line.library?.item(id))?.source { ignoreSource(source) }
         case .toggleLine: toggle()
         case .copyLatestImage: copyLatest()
         case .openScreenshotsFolder: NSWorkspace.shared.open(watcher?.folder ?? line.historyFiles.inbox)

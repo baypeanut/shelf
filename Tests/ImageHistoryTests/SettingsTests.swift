@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 #if !STANDALONE_TESTS
 import XCTest
 @testable import Shelf
@@ -24,6 +25,27 @@ import XCTest
         XCTAssertEqual(line.selectedIDs, selected)
         XCTAssertEqual(line.texts.entries.count, 1)
         controller.close()
+    }
+
+    func testIgnoredAppsAreAddedFromThePickerAndRunningAppsAndRemovedAgain() throws {
+        let f = try SyntheticFixture(); defer { f.cleanup() }
+        let editor = SourceApp(bundleID: "com.example.editor", name: "Editor"), browser = SourceApp(bundleID: "com.example.browser", name: "Browser")
+        let capture = CaptureControl(defaults: f.defaults, frontmost: { nil }, appName: { _ in nil }, ownBundleID: "com.baypeanut.Shelf")
+        let model = SettingsModel(line: f.line(), allowsSystemChanges: false, capture: capture)
+        var refreshes = 0; let observation = model.objectWillChange.sink { refreshes += 1 }; defer { observation.cancel() }
+        var picked: SourceApp? = nil
+        model.chooseIgnoredApp = { picked }; model.runningApps = { [editor, browser] }
+        XCTAssertTrue(capture.ignoredBundleIDs.isEmpty)
+        XCTAssertEqual(model.ignorableRunningApps, [editor, browser])
+        // A cancelled panel adds nothing.
+        model.addIgnoredApp(); XCTAssertTrue(capture.ignoredBundleIDs.isEmpty)
+        picked = editor; model.addIgnoredApp(); model.addIgnoredApp()
+        XCTAssertEqual(f.defaults.stringArray(forKey: "captureIgnoredApps"), ["com.example.editor"])
+        XCTAssertEqual(model.ignorableRunningApps, [browser])
+        XCTAssertGreaterThan(refreshes, 2)
+        capture.ignore(browser.bundleID); XCTAssertTrue(model.ignorableRunningApps.isEmpty)
+        capture.stopIgnoring(editor.bundleID)
+        XCTAssertEqual(capture.ignoredBundleIDs, ["com.example.browser"]); XCTAssertEqual(model.ignorableRunningApps, [editor])
     }
 
     func testSettingsBindingsApplyAppearanceWithoutMovingFocusOrDroppingHistory() throws {

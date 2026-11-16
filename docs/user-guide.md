@@ -12,11 +12,11 @@ In **Settings → Sources**, enable images, text or links individually. All thre
 
 ## Pause or skip capture
 
-Click the menu bar icon and choose **Pause clipboard capture** for 5 minutes, 1 hour or until you resume. The icon is struck through while capture is paused and the menu shows the time left, with **Resume capture** below it. Nothing copied during a pause is added later. A pause that has not run out continues after you quit and reopen Shelf. **Skip next copy** ignores only the next thing you copy. The same commands are in Actions. Screenshots and watched folders keep working during a pause.
+Click the menu bar icon and choose **Pause Clipboard Capture** for 5 minutes, 1 hour or until you resume. The icon is struck through while capture is paused and the menu shows the time left, with **Resume Capture** below it. Nothing copied during a pause is added later. A pause that has not run out continues after you quit and reopen Shelf. **Skip Next Copy** ignores only the next thing you copy. The same commands are in Actions. Screenshots and watched folders keep working during a pause.
 
 ## Ignore an app
 
-**Settings → Sources → Ignored apps** lists apps whose copies Shelf never captures. Use **Add App…** to pick one from Applications, or **Add a running app**. The minus button removes an entry. For an item that shows a source app, **Ignore copies from…** in Actions, in the Library list's context menu or in the inspector adds that app. Shelf identifies the app from the copy itself when the app declares it, and otherwise from the app in front at that moment, so a copy made in the background can be attributed to another app.
+**Settings → Sources → Ignored apps** lists apps whose copies Shelf never captures. Use **Add App…** to pick one from Applications, or **Add a Running App**. The minus button removes an entry. For an item that shows a source app, **Ignore Copies from…** in Actions, in the Library list's context menu or in the inspector adds that app. Shelf identifies the app from the copy itself when the app declares it, and otherwise from the app in front at that moment, so a copy made in the background can be attributed to another app.
 
 ## See where a copy came from
 

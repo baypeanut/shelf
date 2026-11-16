@@ -12,7 +12,7 @@ Verify the bundle using the commands in [Building Shelf](build-guide.md#verify-t
 
 ## A new copy is missing
 
-Check the matching image, text or link switch in **Settings → Sources**, then make a fresh copy. Shelf skips existing clipboard contents at launch and supported sensitive markers. A single URL is routed to Links, while paragraphs remain text. A struck-through menu bar icon means clipboard capture is paused; choose **Resume capture** from the menu. Also check **Ignored apps** in **Settings → Sources**, and whether **Skip next copy** was ticked.
+Check the matching image, text or link switch in **Settings → Sources**, then make a fresh copy. Shelf skips existing clipboard contents at launch and supported sensitive markers. A single URL is routed to Links, while paragraphs remain text. A struck-through menu bar icon means clipboard capture is paused; choose **Resume Capture** from the menu. Also check **Ignored apps** in **Settings → Sources**, and whether **Skip Next Copy** was ticked.
 
 ## Screenshots do not appear
 
@@ -20,7 +20,7 @@ Check the current screenshot destination and Shelf folder access. For an additio
 
 ## The Library could not be opened
 
-Shelf shows this when the database fails its integrity check. It keeps the existing files and pauses capture; **Open data folder** in the alert shows where they are. Before an update changes how the Library is stored, Shelf saves a dated copy in `Library/Snapshots/`. To go back to one, quit Shelf, move `library.sqlite` and any `library.sqlite-wal` and `library.sqlite-shm` beside it out of the folder, and put a copy of the snapshot there named `library.sqlite`. Items captured after the snapshot was made are not in it. Snapshots are deleted a week after they are made and by **Empty Trash…**.
+Shelf shows this when the database fails its integrity check. It keeps the existing files and pauses capture; **Open Data Folder** in the alert shows where they are. Before an update changes how the Library is stored, Shelf saves a dated copy in `Library/Snapshots/`. To go back to one, quit Shelf, move `library.sqlite` and any `library.sqlite-wal` and `library.sqlite-shm` beside it out of the folder, and put a copy of the snapshot there named `library.sqlite`. Items captured after the snapshot was made are not in it. Snapshots are deleted a week after they are made and by **Empty Trash…**.
 
 ## Search returns nothing
 
@@ -32,7 +32,7 @@ Try ordinary copy and paste first. Direct paste needs macOS Accessibility permis
 
 ## A preview stays open
 
-Look for a save-recovery sheet offering retry, discard or keep editing. **Keep editing** deliberately leaves the window open with its draft. The red close control is at the top left; use an explicit recovery choice if a save has failed.
+Look for a save-recovery sheet offering retry, discard or keep editing. **Keep Editing** deliberately leaves the window open with its draft. The red close control is at the top left; use an explicit recovery choice if a save has failed.
 
 ## A shortcut does nothing
 

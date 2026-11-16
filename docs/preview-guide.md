@@ -12,7 +12,7 @@ Click the text to begin editing. Changes save automatically, and Command + Retur
 
 ## Annotate an image
 
-Use **Image markup** or the default M browsing shortcut. The toolbar offers a selection tool, pen, marker, rectangle, ellipse, arrow, line and text. Select an existing annotation to work on it.
+Use **Image Markup** or the default M browsing shortcut. The toolbar offers a selection tool, pen, marker, rectangle, ellipse, arrow, line and text. Select an existing annotation to work on it.
 
 ## Adjust annotation style
 
@@ -20,7 +20,7 @@ The color control changes annotation color. **Annotation style** provides stroke
 
 ## Crop an image
 
-Enter crop mode with the crop button or C while browsing an image. Adjust the crop area and use the checkmark or Return to apply it. Escape cancels the active crop, and **Reset crop** restores the crop boundary.
+Enter crop mode with the crop button or C while browsing an image. Adjust the crop area and use the checkmark or Return to apply it. Escape cancels the active crop, and **Reset Crop** restores the crop boundary.
 
 ## Undo an edit
 
@@ -32,8 +32,8 @@ Image markup and cropping preserve the original image while producing an edited 
 
 ## Copy recognized text
 
-Use **Copy text from image** or Command + Shift + C from a shelf, Library or image preview. Recognition runs locally. Its usefulness depends on the legibility and language of the image; inspect the copied text before relying on it.
+Use **Copy Text from Image** or Command + Shift + C from a shelf, Library or image preview. Recognition runs locally. Its usefulness depends on the legibility and language of the image; inspect the copied text before relying on it.
 
 ## Recover from save failure
 
-If a preview cannot save, the close sheet offers **Try saving again**, **Discard changes** and **Keep editing**. Retry after resolving the storage problem, or keep editing to preserve the current draft. Discard deliberately abandons the unsaved changes.
+If a preview cannot save, the close sheet offers **Try Saving Again**, **Discard Changes** and **Keep Editing**. Retry after resolving the storage problem, or keep editing to preserve the current draft. Discard deliberately abandons the unsaved changes.

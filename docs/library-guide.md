@@ -12,7 +12,7 @@ Use the grid and list buttons in the toolbar to change presentation. The inspect
 
 ## Filter by source app
 
-Open Filters and choose an app under **Copied from** to see only what was copied from it. The menu lists the apps that items in the Library were copied from. The inspector shows an item's source app under its date; its menu offers the same filter and **Ignore copies from…**, which stops future capture from that app without removing anything already saved.
+Open Filters and choose an app under **Copied from** to see only what was copied from it. The menu lists the apps that items in the Library were copied from. The inspector shows an item's source app under its date; its menu offers the same filter and **Ignore Copies from…**, which stops future capture from that app without removing anything already saved.
 
 ## Sort the current view
 
@@ -20,15 +20,15 @@ The Sort menu offers newest first, oldest first, title, reverse title, last copi
 
 ## Keep a record
 
-Use **Save to library** from More, pin the selection, or organize it with a folder or tag. These retained records are kept when ordinary unsaved history expires. Pinning also makes an item available in the pinned-only view.
+Use **Save to Library** from More, pin the selection, or organize it with a folder or tag. These retained records are kept when ordinary unsaved history expires. Pinning also makes an item available in the pinned-only view.
 
 ## File items together
 
-Create a folder with Command + Shift + N. Select records and choose **Add to folder** from More. On a shelf, Shift + P opens the pin-to-folder picker. A Library folder is an organizational collection, not a Finder destination.
+Create a folder with Command + Shift + N. Select records and choose **Add to Folder** from More. On a shelf, Shift + P opens the pin-to-folder picker. A Library folder is an organizational collection, not a Finder destination.
 
 ## Add a tag
 
-Select a record and choose **Add tag…**, or use Command + Shift + T in Library. Tags help retrieve related content without relying on the copied text or website title.
+Select a record and choose **Add Tag…**, or use Command + Shift + T in Library. Tags help retrieve related content without relying on the copied text or website title.
 
 ## Write a note
 
@@ -36,7 +36,7 @@ Command + N creates a note in Library. Click text in its preview to edit it. Fin
 
 ## Export a copy
 
-Choose **Export copies…** or press Command + Shift + E. Text exports as UTF-8 text and links as web-location files. Exports are separate snapshots: later changes in Shelf do not rewrite an exported copy.
+Choose **Export Copies…** or press Command + Shift + E. Text exports as UTF-8 text and links as web-location files. Exports are separate snapshots: later changes in Shelf do not rewrite an exported copy.
 
 ## Recover a removal
 

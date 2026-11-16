@@ -36,4 +36,4 @@ In image markup, V selects annotations, B chooses pen, H marker, R rectangle, O 
 
 ## Change a binding
 
-Open **Settings → Shortcuts** and record a replacement for the relevant action. Each browsing action also offers **Off** and **Reset to default**. Use **Reset all browsing shortcuts** only when you want to replace the whole browsing configuration.
+Open **Settings → Keyboard Shortcuts** and record a replacement for the relevant action. Each browsing action also offers **Off** and **Reset to Default**. Use **Reset All Browsing Shortcuts** only when you want to replace the whole browsing configuration.

@@ -44,6 +44,7 @@ import XCTest
     }
     func testExternalMarkerContractRejectsEveryItemBeforeReadingTextLinksOrImages() throws {
         let oldOwn = ClipboardWatcher.ownChangeCount; defer { ClipboardWatcher.recordOwnCopy(changeCount: oldOwn) }
+        XCTAssertEqual(Set(try contract().privateMarkers), Set(ClipboardWatcher.privateTypes.map(\.rawValue)))
         for marker in try contract().privateMarkers {
             for separate in [false, true] {
                 let source = AdmissionClipboard(), folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

@@ -7,6 +7,8 @@ import CoreText
     private let line: CTLine
     private let inkBounds: CGRect
     private let keycapSize: NSSize
+    /// On a selected row the keycap is drawn light, like the row's text.
+    var isEmphasized = false { didSet { if isEmphasized != oldValue { needsDisplay = true } } }
 
     init(_ title: String) {
         let font = NSFont.monospacedSystemFont(ofSize: 9, weight: .medium)
@@ -39,15 +41,16 @@ import CoreText
 
     override func draw(_ dirtyRect: NSRect) {
         let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.25, dy: 0.25), xRadius: 4, yRadius: 4)
-        NSColor.labelColor.withAlphaComponent(0.055).setFill()
+        let ink = isEmphasized ? NSColor.alternateSelectedControlTextColor : NSColor.labelColor
+        ink.withAlphaComponent(isEmphasized ? 0.18 : 0.055).setFill()
         outline.fill()
-        NSColor.labelColor.withAlphaComponent(0.08).setStroke()
+        ink.withAlphaComponent(isEmphasized ? 0.3 : 0.08).setStroke()
         outline.lineWidth = 0.5
         outline.stroke()
         guard !inkBounds.isEmpty, let context = NSGraphicsContext.current?.cgContext else { return }
         context.saveGState()
         context.textMatrix = .identity
-        context.setFillColor(NSColor.secondaryLabelColor.cgColor)
+        context.setFillColor((isEmphasized ? NSColor.alternateSelectedControlTextColor : NSColor.secondaryLabelColor).cgColor)
         context.textPosition = CGPoint(x: bounds.midX - inkBounds.midX, y: bounds.midY - inkBounds.midY)
         CTLineDraw(line, context)
         context.restoreGState()

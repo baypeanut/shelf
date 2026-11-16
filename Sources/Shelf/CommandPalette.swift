@@ -64,7 +64,7 @@ import AppKit
     private func buildSurface() {
         let surface = NSVisualEffectView()
         surface.material = .hudWindow; surface.blendingMode = .behindWindow; surface.state = .active
-        surface.wantsLayer = true; surface.layer?.cornerRadius = 16; surface.layer?.masksToBounds = true
+        surface.wantsLayer = true; surface.layer?.cornerRadius = ShelfTheme.Radius.panel; surface.layer?.cornerCurve = .continuous; surface.layer?.masksToBounds = true
         surface.setAccessibilityIdentifier("command-palette")
         let tint = PaletteTintView(); tint.translatesAutoresizingMaskIntoConstraints = false
         surface.addSubview(tint)
@@ -72,13 +72,7 @@ import AppKit
             tint.leadingAnchor.constraint(equalTo: surface.leadingAnchor), tint.trailingAnchor.constraint(equalTo: surface.trailingAnchor)])
         window.contentView = surface
         let heading = NSTextField(labelWithString: L("Actions"))
-        heading.font = .systemFont(ofSize: 10, weight: .semibold); heading.textColor = .controlAccentColor
-        let modeIcon = NSImageView(image: NSImage(systemSymbolName: "command", accessibilityDescription: nil)!)
-        modeIcon.symbolConfiguration = .init(pointSize: 10, weight: .semibold); modeIcon.contentTintColor = .controlAccentColor
-        let badge = NSStackView(views: [modeIcon, heading]); badge.spacing = 4
-        badge.edgeInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
-        badge.wantsLayer = true; badge.layer?.cornerRadius = 10
-        badge.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.12).cgColor
+        heading.font = .systemFont(ofSize: 11, weight: .semibold); heading.textColor = .secondaryLabelColor
         searchContentsButton.title = L("Search contents")
         searchContentsButton.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)
         searchContentsButton.imagePosition = .imageLeading
@@ -96,7 +90,7 @@ import AppKit
         close.setAccessibilityLabel(L("Close")); close.toolTip = L("Close")
         close.widthAnchor.constraint(equalToConstant: 24).isActive = true
         close.heightAnchor.constraint(equalToConstant: 24).isActive = true
-        let header = NSStackView(views: [badge, NSView(), searchContentsButton, count, close]); header.spacing = 10
+        let header = NSStackView(views: [heading, NSView(), searchContentsButton, count, close]); header.spacing = 10
         let icon = NSImageView(image: NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)!)
         icon.symbolConfiguration = .init(pointSize: 20, weight: .regular); icon.contentTintColor = .secondaryLabelColor
         icon.widthAnchor.constraint(equalToConstant: 22).isActive = true
@@ -111,7 +105,7 @@ import AppKit
         let input = NSStackView(views: [icon, searchField]); input.spacing = 12
         let separator = NSBox(); separator.boxType = .separator
         let column = NSTableColumn(identifier: .init("command")); column.width = 550
-        table.addTableColumn(column); table.headerView = nil; table.rowHeight = 54; table.intercellSpacing = NSSize(width: 0, height: 2)
+        table.addTableColumn(column); table.headerView = nil; table.rowHeight = 44; table.intercellSpacing = NSSize(width: 0, height: 2)
         table.style = .fullWidth; table.selectionHighlightStyle = .regular; table.backgroundColor = .clear
         table.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         table.allowsEmptySelection = true; table.allowsMultipleSelection = false
@@ -263,13 +257,14 @@ import AppKit
         icon.contentTintColor = .secondaryLabelColor; icon.symbolConfiguration = .init(pointSize: 16, weight: .regular)
         icon.widthAnchor.constraint(equalToConstant: 22).isActive = true
         let title = NSTextField(labelWithString: command.title)
-        title.font = .systemFont(ofSize: 13, weight: .medium); title.lineBreakMode = .byTruncatingTail
-        let labels = NSStackView(views: [title]); labels.orientation = .vertical; labels.alignment = .leading; labels.spacing = 3
+        title.font = .systemFont(ofSize: 13); title.lineBreakMode = .byTruncatingTail
+        let labels = NSStackView(views: [title]); labels.orientation = .vertical; labels.alignment = .leading; labels.spacing = 1
         let detail = !command.isEnabled && !command.disabledReason.isEmpty ? command.disabledReason : command.subtitle
         let description = [command.group, detail].filter { !$0.isEmpty }.joined(separator: " · ")
         if !description.isEmpty {
             let subtitle = NSTextField(labelWithString: description)
             subtitle.font = .systemFont(ofSize: 11); subtitle.textColor = .secondaryLabelColor; subtitle.lineBreakMode = .byTruncatingTail
+            subtitle.tag = PaletteRowView.secondaryTag
             labels.addArrangedSubview(subtitle)
         }
         title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -279,11 +274,12 @@ import AppKit
         if command.isActive {
             let active = NSImageView(image: NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)!)
             active.symbolConfiguration = .init(pointSize: 11, weight: .semibold); active.contentTintColor = .controlAccentColor
+            active.tag = PaletteRowView.accentTag
             active.widthAnchor.constraint(equalToConstant: 18).isActive = true
             rowView.addArrangedSubview(active)
         }
         if !command.keyHint.isEmpty { rowView.addArrangedSubview(keyHint(command.keyHint)) }
-        rowView.edgeInsets = NSEdgeInsets(top: 6, left: 12, bottom: 6, right: 10); rowView.spacing = 10
+        rowView.edgeInsets = NSEdgeInsets(top: 4, left: 10, bottom: 4, right: 10); rowView.spacing = 10
         rowView.alphaValue = command.isEnabled ? 1 : 0.65
         rowView.toolTip = [command.title, description, command.keyHint].filter { !$0.isEmpty }.joined(separator: "\n")
         rowView.setAccessibilityElement(true)
@@ -305,23 +301,41 @@ import AppKit
     }
 }
 
-/// Keep the result highlight in the same quiet, rounded visual language as
-/// the shelf search HUD while NSTableView retains selection accessibility.
+/// The selected result is drawn the way a menu or Spotlight draws it: the
+/// system selection colour with light text. The search field keeps keyboard
+/// focus, so the table would otherwise show its unfocused grey.
 private final class PaletteRowView: NSTableRowView {
+    static let secondaryTag = 2
+    static let accentTag = 3
+    override var isSelected: Bool { didSet { applySelection(to: self) } }
+    override var isEmphasized: Bool { get { true } set {} }
+    override func didAddSubview(_ subview: NSView) { super.didAddSubview(subview); applySelection(to: subview) }
     override func drawSelection(in dirtyRect: NSRect) {
         guard isSelected else { return }
-        NSColor.controlAccentColor.withAlphaComponent(0.14).setFill()
-        NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 1), xRadius: 8, yRadius: 8).fill()
+        NSColor.selectedContentBackgroundColor.setFill()
+        NSBezierPath(roundedRect: bounds, xRadius: ShelfTheme.Radius.control, yRadius: ShelfTheme.Radius.control).fill()
     }
-    override var interiorBackgroundStyle: NSView.BackgroundStyle { .normal }
+    override var interiorBackgroundStyle: NSView.BackgroundStyle { isSelected ? .emphasized : .normal }
+    private func applySelection(to view: NSView) {
+        let light = NSColor.alternateSelectedControlTextColor
+        if let label = view as? NSTextField {
+            label.textColor = isSelected ? (label.tag == Self.secondaryTag ? light.withAlphaComponent(0.8) : light)
+                : (label.tag == Self.secondaryTag ? .secondaryLabelColor : .labelColor)
+        } else if let image = view as? NSImageView {
+            image.contentTintColor = isSelected ? light : (image.tag == Self.accentTag ? .controlAccentColor : .secondaryLabelColor)
+        } else if let keycap = view as? ShortcutKeycapView {
+            keycap.isEmphasized = isSelected
+        }
+        view.subviews.forEach(applySelection)
+    }
 }
 
 /// Draw dynamic AppKit colors whenever the effective appearance changes.
 private final class PaletteTintView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         NSColor.windowBackgroundColor.withAlphaComponent(0.88).setFill(); bounds.fill()
-        NSColor.labelColor.withAlphaComponent(0.12).setStroke()
-        let border = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 16, yRadius: 16)
+        NSColor.separatorColor.setStroke()
+        let border = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: ShelfTheme.Radius.panel, yRadius: ShelfTheme.Radius.panel)
         border.lineWidth = 1; border.stroke()
     }
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }

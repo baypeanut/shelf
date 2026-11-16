@@ -15,7 +15,7 @@ The review covers clipboard admission, local persistence, file handling, optiona
 
 Link previews are a separate opt-in. Requests use public HTTPS destinations, validate DNS answers and redirects, reject credential-bearing URLs and private/reserved addresses, and bound response sizes and timeouts. HTML is parsed as data without running scripts. No browser session, cookies or authorization headers are reused.
 
-The local app has no configured update feed, credential helper or automatic update traffic. A future update channel needs an explicit configuration and signing design.
+Shelf has no in-app updater: no update feed, credential helper, updater framework or update traffic. The bundle verifier rejects packaged update settings and an updater framework. A future updater needs Developer ID signing, notarization and Sparkle 2 with an EdDSA-signed appcast.
 
 ## Known boundaries
 

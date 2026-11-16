@@ -32,7 +32,7 @@ open build/Shelf.app
 
 The app is created at `build/Shelf.app`. The builder verifies a separate, isolated startup before finishing. Move the app to your Applications folder to keep it installed.
 
-This produces an ad-hoc signed local build. Developer ID signing, notarization and Mac App Store distribution are not configured. Updates are installed manually.
+This produces an ad-hoc signed local build. Developer ID signing, notarization and Mac App Store distribution are not configured. There is no in-app updater; updates are installed manually.
 
 ### Optional visual search
 

@@ -11,7 +11,7 @@ Use the repository's private security reporting channel when available. Otherwis
 - Clipboard capture and link enrichment require explicit opt-in. Known sensitive clipboard markers are excluded; arbitrary unmarked secrets cannot be reliably detected.
 - Managed data uses user-only permissions. File handling rejects unsafe paths/symlinks at the managed-file boundary. Local user permissions do not protect against another process running as the same user.
 - Optional metadata requests use public HTTPS only, validate DNS answers and redirects, bound response sizes, and parse HTML without executing it.
-- Shelf has no configured update feed or credential helper. The local build does not check for updates or request GitHub credentials.
+- Shelf has no in-app updater, update feed or credential helper. It does not check for updates or request GitHub credentials.
 - The builder makes an ad-hoc signed local application. It does not claim Developer ID signing, notarization, sandboxing, or Mac App Store approval. See `docs/release-readiness.md`.
 - Never commit user history, private screenshots, preferences, signing keys, tokens or test evidence containing personal data. The publication audit and pinned secret scanner run locally and in CI.
 

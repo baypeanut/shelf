@@ -27,8 +27,8 @@ Latest verification results:
 
 | Check | Result |
 | --- | --- |
-| Full debug XCTest suite | 654 passed, no failures or skips |
-| Full optimized XCTest suite | 651 passed, no failures or skips |
+| Full debug XCTest suite | 617 passed, no failures or skips |
+| Full optimized XCTest suite | 614 passed, no failures or skips |
 | Debug-only instrumentation cases | 3 |
 | 10,000-record search benchmark | Maximum 3 ms in the recorded local run |
 | Source publication guard tests | 4 passed |

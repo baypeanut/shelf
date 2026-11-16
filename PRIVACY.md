@@ -24,7 +24,7 @@ Direct paste asks for Accessibility permission to return to the previously selec
 
 Link enrichment starts disabled. Enabling it lets Shelf request metadata and thumbnails from captured public HTTPS URLs, including YouTube's public services for supported links. Those services see the request URL and your IP address. Requests reject credentials, recognized secret query parameters and private/reserved network destinations; DNS answers and redirects are validated, connections use validated addresses, and TLS checks the original host. HTML is parsed as bounded data, without executing JavaScript.
 
-The locally built Shelf app has no configured update feed and makes no update checks. No GitHub credentials are requested. Downloading source, dependencies and optional pinned Core ML models occurs at build time. OCR and bundled model inference run locally.
+Shelf has no in-app updater and makes no update checks. No GitHub credentials are requested. Downloading source, dependencies and optional pinned Core ML models occurs at build time. OCR and bundled model inference run locally.
 
 ## Privacy manifest
 

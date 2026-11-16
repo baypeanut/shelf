@@ -1,3 +1,4 @@
+#if !STANDALONE_TESTS
 import SwiftUI
 import XCTest
 @testable import Shelf
@@ -41,3 +42,4 @@ final class ShelfThemeTests: XCTestCase {
         XCTAssertEqual(Frame.radius, ShelfTheme.Radius.card)
     }
 }
+#endif

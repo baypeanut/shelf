@@ -26,7 +26,7 @@ Actions, the folder and tag pickers and Name and Pin are floating panels with a 
 
 ## Icon
 
-`scripts/make-shelf-icon.swift` draws the icon with Core Graphics. A picture, note and link rest on a graphite shelf inside an ivory tile. The build creates the application icon; `docs/assets/shelf-icon.png` is the documentation asset.
+`scripts/make-shelf-icon.swift` draws the icon with Core Graphics. A picture, note and link rest on a dark grey shelf inside a light tile on the standard macOS icon grid, in system blue, white and orange. The build creates the application icon; `docs/assets/shelf-icon.png` is the documentation asset.
 
 ## Verification
 

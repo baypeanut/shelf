@@ -48,6 +48,14 @@ The separate harness uses synthetic fixtures and an isolated bundle identifier. 
 
 The harness accepts `--qa-session` followed by a UUID to resume an isolated profile across process restarts. Use a fresh UUID for an independent scenario, then reopen the same session to check persistence. Keep the session identifier and fixture data local.
 
+## Measure library performance
+
+```sh
+bash scripts/benchmark-library.sh 5000,50000
+```
+
+The benchmark builds fictional libraries of the given sizes in a temporary folder through the store's own API, then prints main-thread timings for opening the store, saving each kind of item, reloading the shelves and searching, with the database size. It runs optimized, opens no windows and is skipped by `swift test`. Compare runs on the same Mac; a 50,000-item run takes a few minutes.
+
 ## Validate translations
 
 ```sh

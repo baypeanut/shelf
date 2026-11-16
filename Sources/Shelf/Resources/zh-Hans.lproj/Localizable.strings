@@ -407,3 +407,5 @@
 "Items in Trash" = "废纸篓中的项目";
 "Keep until Trash is emptied" = "保留到清倒废纸篓为止";
 "Items kept in Trash longer than this are permanently deleted." = "在废纸篓中存放超过此期限的项目会被永久删除。";
+"Copies made in this app will not be captured." = "在此 App 中复制的内容将不会被捕获。";
+"Ignore" = "忽略";

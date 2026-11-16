@@ -407,3 +407,5 @@
 "Items in Trash" = "ゴミ箱内の項目";
 "Keep until Trash is emptied" = "ゴミ箱を空にするまで保持";
 "Items kept in Trash longer than this are permanently deleted." = "これより長くゴミ箱にある項目は完全に削除されます。";
+"Copies made in this app will not be captured." = "このアプリでのコピーは取り込まれません。";
+"Ignore" = "無視";

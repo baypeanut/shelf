@@ -24,6 +24,31 @@ struct SystemClipboardSource: ClipboardSource {
     }
 }
 
+/// The application a copy came from. The bundle identifier is the identity;
+/// the name is the label that application had when the copy was observed.
+struct SourceApp: Codable, Equatable, Hashable {
+    let bundleID: String
+    var name: String
+}
+
+enum ClipboardAdmissionDecision: Equatable {
+    case rejected
+    case admitted(SourceApp?)
+}
+
+/// Pause, skip-next, per-app exclusion and source attribution. Image, text
+/// and link capture consult one object through `ClipboardWatcher.admission`.
+@MainActor
+protocol ClipboardAdmission: AnyObject {
+    /// While true a watcher advances past every change without reading it.
+    var isPaused: Bool { get }
+    /// True when this change is the one copy the user asked to skip. Both
+    /// watchers observe the same change count and get the same answer.
+    func skips(changeCount: Int) -> Bool
+    /// Called only for a copy without private markers.
+    func admit(source: any ClipboardSource, items: [[NSPasteboard.PasteboardType]]) -> ClipboardAdmissionDecision
+}
+
 /// Optional clipboard image capture.
 /// Polling only reads PNG/TIFF image data; it never writes to the pasteboard or follows URLs.
 @MainActor
@@ -33,6 +58,10 @@ final class ClipboardWatcher {
     private let onImage: (URL) -> Void
     private var timer: Timer?
     private var lastCount: Int?
+    private let capture: (any ClipboardAdmission)?
+    private var wasPaused = false
+    /// The source of the image being delivered. Only meaningful inside `onImage`.
+    private(set) var admittedSource: SourceApp?
     static var ownChangeCount = -1
 
     /// No registered default: a missing preference is false.
@@ -56,13 +85,14 @@ final class ClipboardWatcher {
     static let maximumDataBytes = 32 * 1024 * 1024
     static let maximumPixelCount = 40_000_000
 
-    convenience init(onImage: @escaping (URL) -> Void) {
-        self.init(source: SystemClipboardSource(), folder: Inbox.folder, onImage: onImage)
+    convenience init(capture: (any ClipboardAdmission)? = nil, onImage: @escaping (URL) -> Void) {
+        self.init(source: SystemClipboardSource(), folder: Inbox.folder, capture: capture, onImage: onImage)
     }
 
-    init(source: any ClipboardSource, folder: URL, onImage: @escaping (URL) -> Void) {
+    init(source: any ClipboardSource, folder: URL, capture: (any ClipboardAdmission)? = nil, onImage: @escaping (URL) -> Void) {
         self.source = source
         self.folder = folder
+        self.capture = capture
         self.onImage = onImage
     }
 
@@ -81,22 +111,54 @@ final class ClipboardWatcher {
         timer?.invalidate()
         timer = nil
         lastCount = nil
+        wasPaused = false
+    }
+
+    /// Capture continues with the next copy, never the board's current contents.
+    func skipCurrent() {
+        guard timer != nil else { return }
+        lastCount = source.changeCount; wasPaused = false
+    }
+
+    /// The one admission path for image, text and link capture. Shelf's own
+    /// copies and a skipped copy are dropped before any pasteboard type is
+    /// read; private markers and file copies (Finder also advertises a TIFF/PNG
+    /// of the file's icon) before any data is read, the source marker included.
+    static func admission(of count: Int, in source: any ClipboardSource,
+                          capture: (any ClipboardAdmission)?) -> (items: [[NSPasteboard.PasteboardType]], source: SourceApp?)? {
+        guard count != ownChangeCount, capture?.skips(changeCount: count) != true else { return nil }
+        let items = source.itemTypes
+        guard !items.contains(where: { types in
+            types.contains(.fileURL) || !privateTypes.isDisjoint(with: types)
+        }) else { return nil }
+        guard let capture else { return source.changeCount == count ? (items, nil) : nil }
+        guard case let .admitted(app) = capture.admit(source: source, items: items),
+              source.changeCount == count else { return nil }
+        return (items, app)
+    }
+
+    /// A paused watcher keeps observing the change count, so nothing copied
+    /// during a pause is captured once it ends. A watcher that was not told
+    /// the pause ended (`skipCurrent`) cannot date the copy it finds on its
+    /// first poll afterwards, and lets that one go too. Returns the new
+    /// change count to examine, if any.
+    static func changedCount(in source: any ClipboardSource, capture: (any ClipboardAdmission)?,
+                             lastCount: inout Int?, wasPaused: inout Bool) -> Int? {
+        let paused = capture?.isPaused == true, count = source.changeCount
+        if paused || wasPaused { wasPaused = paused; lastCount = count; return nil }
+        guard count != lastCount else { return nil }
+        lastCount = count
+        return count
     }
 
     /// Internal so tests can advance a synthetic clipboard without waiting for a timer.
     func check() {
         guard timer != nil else { return }
-        let count = source.changeCount
-        guard count != lastCount else { return }
-        lastCount = count
-        guard count != Self.ownChangeCount else { return }
-
-        let items = source.itemTypes
-        // Check every item before requesting any image bytes. File copies are excluded
-        // because Finder also advertises a TIFF/PNG of the file's icon.
-        guard !items.contains(where: { types in
-            types.contains(.fileURL) || !Self.privateTypes.isDisjoint(with: types)
-        }), source.changeCount == count else { return }
+        guard let count = Self.changedCount(in: source, capture: capture, lastCount: &lastCount, wasPaused: &wasPaused),
+              let admission = Self.admission(of: count, in: source, capture: capture) else { return }
+        let items = admission.items
+        admittedSource = admission.source
+        defer { admittedSource = nil }
 
         for (index, types) in items.enumerated() {
             for type in [NSPasteboard.PasteboardType.png, .tiff] where types.contains(type) {

@@ -407,3 +407,5 @@
 "Items in Trash" = "휴지통의 항목";
 "Keep until Trash is emptied" = "휴지통을 비울 때까지 보관";
 "Items kept in Trash longer than this are permanently deleted." = "이 기간보다 오래 휴지통에 있는 항목은 영구적으로 삭제됩니다.";
+"Copies made in this app will not be captured." = "이 앱에서 복사한 내용은 캡처되지 않습니다.";
+"Ignore" = "무시";

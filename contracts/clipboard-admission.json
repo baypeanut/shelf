@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "description": "Copied content admission before history, previews, indexing or metadata. Private markers on any item exclude the whole copy; nonblank text bytes stay exact.",
+  "description": "Copied content admission before history, previews, indexing or metadata. Private markers on any item exclude the whole copy; nonblank text bytes stay exact. Then the source app decides: the pasteboard's source marker when it holds a bundle identifier, otherwise the frontmost app. A copy from an ignored app is not captured; an admitted copy records its source, never Shelf itself. While capture is paused, and for one skipped copy, nothing is read or captured, and nothing is captured retroactively afterwards.",
   "privateMarkers": [
     "org.nspasteboard.ConcealedType",
     "org.nspasteboard.TransientType",
@@ -9,6 +9,113 @@
     "de.petermaurer.TransientPasteboardType",
     "com.typeit4me.clipping",
     "Pasteboard generator type"
+  ],
+  "sourceMarker": "org.nspasteboard.source",
+  "ownBundleIdentifier": "com.baypeanut.Shelf",
+  "sourceCases": [
+    {
+      "name": "frontmost app is recorded",
+      "declared": null,
+      "frontmost": "com.example.editor",
+      "ignored": [],
+      "capture": true,
+      "source": "com.example.editor"
+    },
+    {
+      "name": "frontmost app is ignored",
+      "declared": null,
+      "frontmost": "com.example.editor",
+      "ignored": [
+        "com.example.editor"
+      ],
+      "capture": false,
+      "source": null
+    },
+    {
+      "name": "declared source wins over frontmost app",
+      "declared": "com.example.terminal",
+      "frontmost": "com.example.editor",
+      "ignored": [],
+      "capture": true,
+      "source": "com.example.terminal"
+    },
+    {
+      "name": "declared source is ignored, frontmost app is not",
+      "declared": "com.example.terminal",
+      "frontmost": "com.example.editor",
+      "ignored": [
+        "com.example.terminal"
+      ],
+      "capture": false,
+      "source": null
+    },
+    {
+      "name": "frontmost app is ignored, declared source is not",
+      "declared": "com.example.terminal",
+      "frontmost": "com.example.editor",
+      "ignored": [
+        "com.example.editor"
+      ],
+      "capture": true,
+      "source": "com.example.terminal"
+    },
+    {
+      "name": "ignored list matches without regard to case",
+      "declared": null,
+      "frontmost": "com.example.Editor",
+      "ignored": [
+        "com.example.editor"
+      ],
+      "capture": false,
+      "source": null
+    },
+    {
+      "name": "malformed declared source falls back to frontmost app",
+      "declared": "not a bundle identifier",
+      "frontmost": "com.example.editor",
+      "ignored": [],
+      "capture": true,
+      "source": "com.example.editor"
+    },
+    {
+      "name": "malformed declared source does not hide an ignored frontmost app",
+      "declared": "not a bundle identifier",
+      "frontmost": "com.example.editor",
+      "ignored": [
+        "com.example.editor"
+      ],
+      "capture": false,
+      "source": null
+    },
+    {
+      "name": "another app's list entry does not block",
+      "declared": null,
+      "frontmost": "com.example.browser",
+      "ignored": [
+        "com.example.editor",
+        "com.example.terminal"
+      ],
+      "capture": true,
+      "source": "com.example.browser"
+    },
+    {
+      "name": "Shelf in front is captured without a source",
+      "declared": null,
+      "frontmost": "com.baypeanut.Shelf",
+      "ignored": [],
+      "capture": true,
+      "source": null
+    },
+    {
+      "name": "unknown app is captured without a source",
+      "declared": null,
+      "frontmost": null,
+      "ignored": [
+        "com.example.editor"
+      ],
+      "capture": true,
+      "source": null
+    }
   ],
   "textCases": [
     {

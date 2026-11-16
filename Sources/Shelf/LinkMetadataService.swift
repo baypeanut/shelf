@@ -69,7 +69,10 @@ struct LinkMetadata: Equatable {
         defer { if token == generation { running[id] = nil; schedule() } }
         guard enabled(), let record = try? store.item(id), record.deletedAt == nil else { return }
         do {
-            var thumbnail: String?
+            var thumbnail: String?, saved = false
+            // A preview written for a result that is then dropped (lookups turned
+            // off, a newer request, a failed save) is referenced by no item.
+            defer { if !saved, let thumbnail { try? FileManager.default.removeItem(atPath: thumbnail) } }
             if case let .success(metadata) = result {
                 cache[key] = metadata; if cache.count > 128 { cache.removeValue(forKey: cache.keys.first!) }
                 while cache.values.reduce(0, { $0 + ($1.thumbnail?.count ?? 0) }) > 16 * 1024 * 1024 { cache.removeValue(forKey: cache.keys.first!) }
@@ -95,6 +98,7 @@ struct LinkMetadata: Equatable {
                 case .failure: value.metadataState = "failed"
                 }
             }
+            saved = true
             if let thumbnail, let old = record.thumbnailPath, old != thumbnail {
                 let file = URL(fileURLWithPath: old)
                 if file.deletingLastPathComponent() == store.thumbnailsFolder, file.resolvingSymlinksInPath() == file { try? FileManager.default.removeItem(at: file) }

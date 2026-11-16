@@ -168,4 +168,49 @@ import XCTest
         let line = Line(defaults: f.defaults, inbox: f.inbox, breeze: false, library: library)
         line.pinFromUI(first.id); XCTAssertTrue(try library.item(first.id)?.favorite == true); XCTAssertFalse(try library.item(second.id)?.favorite == true)
     }
+    func testFailedPinFolderTagOrEditRecoversThePrivateCopyItMade() throws {
+        let f = try SyntheticFixture(); defer { f.cleanup() }
+        let library = try store(f), source = try f.image(owned: false), record = try library.captureImage(source)
+        let bytes = try Data(contentsOf: source), folder = try library.createCollection("Folder"), revision = library.revision
+        let trash = f.folder.appendingPathComponent(".test-trash")
+        let database = try LibraryDatabase(url: library.databaseURL)
+        try database.execute("CREATE TRIGGER reject_retained_update BEFORE UPDATE ON items WHEN NEW.retained IS NOT NULL BEGIN SELECT RAISE(ABORT,'synthetic write failure'); END")
+        let writes: [(String, () throws -> Void)] = [
+            ("pin", { try library.toggleFavorite([record.id]) }),
+            ("folder", { try library.assign([record.id], to: folder) }),
+            ("tag", { try library.addTag("topic", to: [record.id]) }),
+            ("edit", { try library.update(record.id) { $0.retainedAt = f.date } })
+        ]
+        for (index, write) in writes.enumerated() {
+            XCTAssertThrowsError(try write.1(), write.0)
+            XCTAssertEqual(try library.item(record.id), record, write.0); XCTAssertEqual(library.revision, revision, write.0)
+            XCTAssertTrue(library.files.files(in: library.files.favoritesFolder, matching: library.files.isFavoriteCopy).isEmpty, write.0)
+            let recovered = try FileManager.default.contentsOfDirectory(at: trash, includingPropertiesForKeys: nil)
+            XCTAssertEqual(recovered.count, index + 1, write.0)
+            for copy in recovered { XCTAssertEqual(try Data(contentsOf: copy), bytes, write.0) }
+        }
+        XCTAssertEqual(try Data(contentsOf: source), bytes); XCTAssertTrue(try library.tags().isEmpty)
+    }
+    func testBatchThatFailsMidwayRecoversCopiesMadeForEarlierItems() throws {
+        let f = try SyntheticFixture(); defer { f.cleanup() }
+        let library = try store(f), first = try f.image(owned: false), second = try f.image(owned: false)
+        let a = try library.captureImage(first), b = try library.captureImage(second), bytes = try Data(contentsOf: first)
+        try FileManager.default.moveItem(at: second, to: second.appendingPathExtension("moved"))
+        XCTAssertThrowsError(try library.toggleFavorite([a.id, b.id]))
+        XCTAssertEqual(try library.item(a.id), a); XCTAssertEqual(try library.item(b.id), b)
+        XCTAssertTrue(library.files.files(in: library.files.favoritesFolder, matching: library.files.isFavoriteCopy).isEmpty)
+        let recovered = try FileManager.default.contentsOfDirectory(at: f.folder.appendingPathComponent(".test-trash"), includingPropertiesForKeys: nil)
+        XCTAssertEqual(recovered.count, 1); XCTAssertEqual(try Data(contentsOf: XCTUnwrap(recovered.first)), bytes)
+        XCTAssertEqual(try Data(contentsOf: first), bytes)
+    }
+    func testFailedPrivateWriteLeavesNoStagedFile() throws {
+        let f = try SyntheticFixture(); defer { f.cleanup() }
+        let library = try store(f), folder = f.folder.appendingPathComponent("Staging", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        // The staged file fits; the final name is longer than the filesystem allows.
+        XCTAssertThrowsError(try library.writePrivate(Data("synthetic".utf8), to: folder.appendingPathComponent(String(repeating: "n", count: 300))))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), [])
+        try library.writePrivate(Data("synthetic".utf8), to: folder.appendingPathComponent("kept"))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["kept"])
+    }
 }

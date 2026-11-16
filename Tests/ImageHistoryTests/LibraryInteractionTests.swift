@@ -233,6 +233,22 @@ import XCTest
         service.request([id]); wait { calls == 1 }; enabled = false; service.stop(); RunLoop.current.run(until: Date().addingTimeInterval(0.08))
         XCTAssertEqual(try store.item(id)?.title, ""); XCTAssertEqual(try store.item(id)?.metadataState, "pending"); XCTAssertEqual(service.pendingCount, 0)
     }
+    func testLinkPreviewThatCannotBeSavedLeavesNoThumbnailFile() throws {
+        let f = try SyntheticFixture(); defer { f.cleanup() }; let store = try library(f)
+        let id = try store.captureLink(URL(string: "https://example.com/preview")!).id, image = try Data(contentsOf: f.image())
+        let database = try LibraryDatabase(url: store.databaseURL)
+        try database.execute("CREATE TRIGGER reject_preview BEFORE UPDATE ON items BEGIN SELECT RAISE(ABORT,'synthetic write failure'); END")
+        var calls = 0
+        let service = LinkMetadataService(store: store, enabled: { true }, fetch: { _ in calls += 1; return LinkMetadata(title: "Preview", thumbnail: image) })
+        service.request([id]); wait { calls == 1 && service.pendingCount == 0 }
+        XCTAssertNil(try store.item(id)?.thumbnailPath)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: store.thumbnailsFolder.path), [])
+        try database.execute("DROP TRIGGER reject_preview")
+        service.request([id], force: true); wait { calls == 2 && service.pendingCount == 0 }
+        let saved = try XCTUnwrap(store.item(id)?.thumbnailPath)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: store.thumbnailsFolder.path), [URL(fileURLWithPath: saved).lastPathComponent])
+        service.stop()
+    }
     func testManualMetadataRefreshBypassesCacheAndKeepsUserTitle() throws {
         let f = try SyntheticFixture(); defer { f.cleanup() }; let store = try library(f)
         let id = try store.captureLink(URL(string: "https://example.com/refresh")!).id; var calls = 0

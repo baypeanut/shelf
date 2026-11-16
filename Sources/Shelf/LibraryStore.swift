@@ -525,9 +525,17 @@ extension String {
         item.originalURL = url.absoluteString; item.normalizedURL = normalized; item.lastCapturedAt = date; item.captureRevision = UUID()
         try db.transaction { try put(item) }; changed([item.id]); return item
     }
-    private func ensureOwned(_ item: inout LibraryRecord) throws {
-        guard item.kind == .image, let url = item.fileURL, !files.isAppCopy(url) else { return }
+    /// Returns the private copy it made, if any, so a caller whose write then
+    /// fails can hand that copy to `discardUnpublished`.
+    @discardableResult private func ensureOwned(_ item: inout LibraryRecord) throws -> URL? {
+        guard item.kind == .image, let url = item.fileURL, !files.isAppCopy(url) else { return nil }
         let copy = try files.makeFavoriteCopy(of: url); item.originalPath = item.originalPath ?? url.path; item.path = copy.path
+        return copy
+    }
+    /// No row references a copy whose write failed. Move it to the recoverable
+    /// Trash, as naming does, instead of leaving it to accumulate in Favorites.
+    private func discardUnpublished(_ copies: [URL]) {
+        for copy in copies where files.isFavoriteCopy(copy) { _ = try? files.trashAppCopy(copy) }
     }
     /// Save editable vectors and a flattened PNG under the same item identity.
     /// Nothing writes to the original screenshot. A failed render/write/SQLite
@@ -688,11 +696,14 @@ extension String {
         try transform(&value); value.updatedAt = now()
         if previous.deletedAt == nil, value.deletedAt != nil { value.trashRevision = UUID() }
         else if previous.deletedAt != nil, value.deletedAt == nil { value.trashRevision = nil }
-        if value.retainedAt != nil { try ensureOwned(&value) }
         guard (value.text?.utf8.count ?? 0) <= TextClipboardWatcher.maximumDataBytes, value.note.utf8.count <= TextClipboardWatcher.maximumDataBytes else { throw HistoryFiles.Failure.unsafeFile }
+        let copy = value.retainedAt != nil ? try ensureOwned(&value) : nil
         let textFileRollback = value.kind == .text ? try rewriteMaterializedText(previous, to: value.text ?? "") : nil
         do { try db.transaction { try put(value) } }
-        catch { if let rollback = textFileRollback { try? writePrivate(rollback.data, to: rollback.url) }; throw error }
+        catch {
+            if let rollback = textFileRollback { try? writePrivate(rollback.data, to: rollback.url) }
+            discardUnpublished(copy.map { [$0] } ?? []); throw error
+        }
         changed([id])
     }
     private func rewriteMaterializedText(_ previous: LibraryRecord, to text: String) throws -> (url: URL, data: Data)? {
@@ -732,8 +743,14 @@ extension String {
     func toggleFavorite(_ ids: [UUID]) throws { try mutate(ids) { $0.favorite.toggle(); if $0.favorite && $0.retainedAt == nil { $0.retainedAt = self.now() } } }
     private func mutate(_ ids: [UUID], _ transform: (inout LibraryRecord) throws -> Void) throws {
         var values = try ids.map { id -> LibraryRecord in guard let value = try item(id) else { throw HistoryFiles.Failure.unsafeFile }; return value }
-        for index in values.indices { try transform(&values[index]); values[index].updatedAt = now(); if values[index].retainedAt != nil { try ensureOwned(&values[index]) } }
-        try db.transaction { for value in values { try put(value) } }
+        var copies = [URL]()
+        do {
+            for index in values.indices {
+                try transform(&values[index]); values[index].updatedAt = now()
+                if values[index].retainedAt != nil, let copy = try ensureOwned(&values[index]) { copies.append(copy) }
+            }
+            try db.transaction { for value in values { try put(value) } }
+        } catch { discardUnpublished(copies); throw error }
         invalidateTrashUndo(ids); changed(ids)
     }
     func removeFromShelf(_ ids: [UUID]) throws {
@@ -940,16 +957,21 @@ extension String {
         guard folders.contains(where: { $0.id == collection }), source == nil || folders.contains(where: { $0.id == source }) else { throw HistoryFiles.Failure.invalidDestination }
         let sources = source.map { source in folders.filter { $0.id == source || $0.parentID == source }.map(\.id) } ?? []
         var values = try ids.map { id -> LibraryRecord in guard let value = try item(id) else { throw HistoryFiles.Failure.unsafeFile }; return value }
-        for index in values.indices {
-            if pinning { guard values[index].deletedAt == nil else { throw HistoryFiles.Failure.unsafeFile }; values[index].favorite = true }
-            values[index].retainedAt = values[index].retainedAt ?? now(); try ensureOwned(&values[index])
-        }
-        try db.transaction {
-            for value in values {
-                try put(value); try db.execute("INSERT OR IGNORE INTO item_collections VALUES(?,?)", [.text(value.id.uuidString), .text(collection.uuidString)])
-                for source in sources where source != collection { try db.execute("DELETE FROM item_collections WHERE item=? AND collection=?", [.text(value.id.uuidString), .text(source.uuidString)]) }
+        var copies = [URL]()
+        do {
+            for index in values.indices {
+                if pinning { guard values[index].deletedAt == nil else { throw HistoryFiles.Failure.unsafeFile }; values[index].favorite = true }
+                values[index].retainedAt = values[index].retainedAt ?? now()
+                if let copy = try ensureOwned(&values[index]) { copies.append(copy) }
             }
-        }; changed()
+            try db.transaction {
+                for value in values {
+                    try put(value); try db.execute("INSERT OR IGNORE INTO item_collections VALUES(?,?)", [.text(value.id.uuidString), .text(collection.uuidString)])
+                    for source in sources where source != collection { try db.execute("DELETE FROM item_collections WHERE item=? AND collection=?", [.text(value.id.uuidString), .text(source.uuidString)]) }
+                }
+            }
+        } catch { discardUnpublished(copies); throw error }
+        changed()
     }
     func unassign(_ id: UUID, from collection: UUID) throws { try db.execute("DELETE FROM item_collections WHERE item=? AND collection=?", [.text(id.uuidString), .text(collection.uuidString)]); changed() }
     func tags() throws -> [LibraryTag] { try db.rows("SELECT * FROM tags ORDER BY folded,id").map { row in guard let id = row["id"]?.string.flatMap(UUID.init(uuidString:)), let name = row["name"]?.string else { throw HistoryFiles.Failure.unsafeFile }; return LibraryTag(id: id, name: name) } }
@@ -964,11 +986,18 @@ extension String {
         let name = try cleanedName(name.trimmingCharacters(in: CharacterSet(charactersIn: "#"))), folded = name.libraryFolded
         let existing = try tags().first { $0.name.libraryFolded == folded }, tagID = existing?.id ?? UUID()
         var values = try ids.map { id -> LibraryRecord in guard let value = try item(id) else { throw HistoryFiles.Failure.unsafeFile }; return value }
-        for index in values.indices { values[index].retainedAt = values[index].retainedAt ?? now(); try ensureOwned(&values[index]) }
-        try db.transaction {
-            if existing == nil { try db.execute("INSERT INTO tags VALUES(?,?,?)", [.text(tagID.uuidString), .text(name), .text(folded)]) }
-            for value in values { try put(value); try db.execute("INSERT OR IGNORE INTO item_tags VALUES(?,?)", [.text(value.id.uuidString), .text(tagID.uuidString)]); try put(value) }
-        }; changed()
+        var copies = [URL]()
+        do {
+            for index in values.indices {
+                values[index].retainedAt = values[index].retainedAt ?? now()
+                if let copy = try ensureOwned(&values[index]) { copies.append(copy) }
+            }
+            try db.transaction {
+                if existing == nil { try db.execute("INSERT INTO tags VALUES(?,?,?)", [.text(tagID.uuidString), .text(name), .text(folded)]) }
+                for value in values { try put(value); try db.execute("INSERT OR IGNORE INTO item_tags VALUES(?,?)", [.text(value.id.uuidString), .text(tagID.uuidString)]); try put(value) }
+            }
+        } catch { discardUnpublished(copies); throw error }
+        changed()
     }
     func removeTag(_ tag: UUID, from itemID: UUID? = nil) throws {
         let affected = try db.rows("SELECT item FROM item_tags WHERE tag=?", [.text(tag.uuidString)]).compactMap { $0["item"]?.string.flatMap(UUID.init(uuidString:)) }
@@ -991,8 +1020,13 @@ extension String {
               !FileManager.default.fileExists(atPath: url.path) || url.resolvingSymlinksInPath().path == url.standardizedFileURL.path else { throw HistoryFiles.Failure.unsafeFile }
         let stage = url.deletingLastPathComponent().appendingPathComponent(".write-\(UUID())")
         guard FileManager.default.createFile(atPath: stage.path, contents: data, attributes: [.posixPermissions: 0o600]) else { throw HistoryFiles.Failure.unsafeFile }
-        if FileManager.default.fileExists(atPath: url.path) { _ = try FileManager.default.replaceItemAt(url, withItemAt: stage) }
-        else { try FileManager.default.moveItem(at: stage, to: url) }
+        do {
+            if FileManager.default.fileExists(atPath: url.path) { _ = try FileManager.default.replaceItemAt(url, withItemAt: stage) }
+            else { try FileManager.default.moveItem(at: stage, to: url) }
+        } catch {
+            // The stage holds only the bytes this call was given; nothing else refers to it.
+            try? FileManager.default.removeItem(at: stage); throw error
+        }
     }
     private func changed(_ ids: [UUID] = []) {
         changedIDs = Set(ids)
@@ -1009,6 +1043,9 @@ extension String {
             if record.kind == .image { guard let file = record.fileURL, files.isRegularFile(file) else { throw HistoryFiles.Failure.unsafeFile } }
             if record.kind == .link { guard let url = record.linkURL, LinkIdentity.normalized(url) == record.normalizedURL else { throw HistoryFiles.Failure.unsafeFile } }
         }
-        try db.transaction { for var record in records { if record.retainedAt != nil { try ensureOwned(&record) }; try put(record) } }; changed()
+        var copies = [URL]()
+        do { try db.transaction { for var record in records { if record.retainedAt != nil, let copy = try ensureOwned(&record) { copies.append(copy) }; try put(record) } } }
+        catch { discardUnpublished(copies); throw error }
+        changed()
     }
 }

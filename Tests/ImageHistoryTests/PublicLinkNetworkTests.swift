@@ -19,13 +19,16 @@ import XCTest
 
     func testDestinationRequiresNamedHTTPSAndStripsFragmentWithoutLeakingSecrets() throws {
         let syntheticUserInfo = "synthetic-user" + ":" + "synthetic-password" + "@"
-        for value in ["http://example.com/a", "https://127.1/a", "https://8.8.8.8/a", "https://[2606:4700::1111]/a", "https://" + syntheticUserInfo + "example.com/a", "https://example.com:8443/a", "https://localhost/a", "https://host.local/a", "https://host.internal/a", "https://host.home.arpa/a", "https://host.onion/a", "https://host.invalid/a", "https://example.com./a", "https://-bad.example.com/a", "https://example.com/?%74oken=secret", "https://example.com/?X-Amz-Signature=secret", "https://example.com/?api_key=secret", "https://example.com/?accessToken=secret", "https://example.com/?sessionId=secret"] {
+        for value in ["http://example.com/a", "https://127.1/a", "https://8.8.8.8/a", "https://[2606:4700::1111]/a", "https://" + syntheticUserInfo + "example.com/a", "https://example.com:8443/a", "https://localhost/a", "https://host.local/a", "https://host.internal/a", "https://host.home.arpa/a", "https://host.onion/a", "https://host.invalid/a", "https://example.com./a", "https://-bad.example.com/a", "https://example.com/?%74oken=secret", "https://example.com/?X-Amz-Signature=secret", "https://example.com/?api_key=secret", "https://example.com/?accessToken=secret", "https://example.com/?sessionId=secret", "https://example.com/?pwd=secret", "https://example.com/?PassWd=secret", "https://example.com/?pass_code=secret", "https://example.com/?passphrase=secret", "https://example.com/?otp=000000", "https://example.com/?totp=000000", "https://example.com/?api-secret=secret", "https://example.com/?secret_key=secret", "https://example.com/?private_key=secret", "https://example.com/?accessKey=secret"] {
             XCTAssertNil(PublicLinkDestination(try XCTUnwrap(URL(string: value))), value)
         }
         let destination = try XCTUnwrap(PublicLinkDestination(URL(string: "https://Example.com:443/articles?q=hello%20world#private-fragment")!))
         XCTAssertEqual(destination.hostname, "example.com")
         XCTAssertEqual(destination.url.absoluteString, "https://example.com/articles?q=hello%20world")
         XCTAssertEqual(destination.requestTarget, "/articles?q=hello%20world")
+        for value in ["https://example.com/?password_reset=1", "https://example.com/?keyword=otp", "https://example.com/?topic=pwd", "https://example.com/?passage=2"] {
+            XCTAssertNotNil(PublicLinkDestination(try XCTUnwrap(URL(string: value))), value)
+        }
     }
 
     func testPinnedEndpointUsesNumericCaseButTLSAndHostHeaderUseOriginalHostname() throws {

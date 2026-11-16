@@ -14,6 +14,8 @@ Shelf is a menu bar app for the images, text and links you copy. Open a shelf to
 - Edit notes and annotate or crop images while preserving the originals.
 - Copy a selection, drag it into another app or export a copy.
 - Restore removed items from Library Trash, which is emptied after 30 days by default or on request.
+- Pause clipboard capture for a while, skip the next copy, or never capture copies from apps you choose.
+- See which app an item was copied from, and filter the Library by it.
 - Use keyboard shortcuts and a searchable Actions menu.
 - Enable optional offline visual search for image content.
 
@@ -48,6 +50,8 @@ The first build downloads pinned model assets. Search runs on your Mac after the
 
 Open **Settings → Sources** and choose what Shelf should capture. Clipboard image, text and link capture start disabled. Link previews have a separate switch because loading a preview contacts the saved website.
 
+**Ignored apps** in the same pane lists apps whose copies are never captured. It starts empty. From the menu bar menu you can pause clipboard capture for 5 minutes, 1 hour or until you resume, or skip only the next copy. The menu bar icon is struck through while capture is paused, and a pause that has not run out is still in effect after you reopen Shelf. Screenshots and watched folders are not paused.
+
 Shelf can watch the current macOS screenshot folder while it is running. You can choose additional folders. Inbox mode asks before changing your screenshot destination and restores the saved setting when disabled or on normal quit. Launch at login is optional.
 
 ## Keyboard shortcuts
@@ -69,7 +73,7 @@ Shortcuts can be changed in Settings. Direct paste into another app requires mac
 
 There is no account, cloud sync, analytics or remote inference service. Your Library stays in `~/Library/Application Support/Shelf/Screenshots/`.
 
-Capture skips supported confidential, concealed, transient and password-manager clipboard markers. Unmarked secrets cannot always be identified. Local history is protected by your macOS account permissions and is not encrypted by Shelf.
+Capture skips supported confidential, concealed, transient and password-manager clipboard markers. Shelf records the name and bundle identifier of the app each copy came from, locally, with the item. Unmarked secrets cannot always be identified. Local history is protected by your macOS account permissions and is not encrypted by Shelf.
 
 Link previews are off by default. When enabled, the destination website can see the request and your IP address. See [Privacy](PRIVACY.md) and [Security](SECURITY.md) for the complete behavior.
 

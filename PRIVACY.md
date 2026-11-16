@@ -1,6 +1,6 @@
 # Shelf privacy
 
-Shelf stores captured text, images, links, titles, pins, folders, tags, annotations, OCR text and search vectors on your Mac. There is no Shelf account, telemetry, cloud history or remote inference service.
+Shelf stores captured text, images, links, the app each was copied from, titles, pins, folders, tags, annotations, OCR text and search vectors on your Mac. There is no Shelf account, telemetry, cloud history or remote inference service.
 
 ## Local storage
 
@@ -15,6 +15,20 @@ Permanent deletion is not secure erasure of exports, originals, the macOS Trash,
 ## Capture choices
 
 Image, text and link clipboard capture are separate opt-ins and start disabled. Known confidential, transient, concealed and password-manager pasteboard markers are excluded. Shelf cannot identify every unmarked password or token. Capture starts at the current pasteboard change count; launching does not import existing clipboard content.
+
+## Source apps
+
+When a clipboard copy is captured, Shelf records which app it came from: the app's bundle identifier and its display name, nothing else about the app or its windows. If the copy carries the `org.nspasteboard.source` pasteboard marker, Shelf uses the bundle identifier in it. Otherwise it records the app that is in front when Shelf notices the copy, up to half a second after it was made. That is a guess: a copy made by a background tool, or just before you switch apps, is attributed to whichever app was in front. Shelf does not record itself as a source, and screenshots and files from watched folders have no source.
+
+The source is stored with the item in the same local SQLite library, shown in the item's details and preview, and can be used as a Library filter. It leaves your Mac only if you share the Library files yourself. Items captured before this was recorded have no source. Permanently deleting an item deletes its source with it.
+
+**Settings → Sources → Ignored apps** lists apps whose copies are never captured. The list starts empty, holds only bundle identifiers and is kept in Shelf's preferences. A copy is skipped when its source, determined as above, is in the list, so the same guess applies: a copy an ignored app makes while another app is in front is captured unless it carries the source marker. Use it as a convenience, not as a guarantee for secrets.
+
+## Pausing capture
+
+**Pause clipboard capture** in the menu bar menu or Actions stops image, text and link capture for 5 minutes, 1 hour or until you resume. Nothing copied during a pause is captured, including after it ends. The end time is kept in Shelf's preferences, so a pause continues across a relaunch until it runs out or you resume. **Skip next copy** ignores the next single clipboard change. Neither affects screenshots or watched folders, which keep arriving while clipboard capture is paused.
+
+## Screenshots and permissions
 
 While running, Shelf observes the current macOS screenshot destination, subject to folder permissions. Additional watched folders are chosen separately. Inbox mode changes screenshot destinations only after consent and restores saved settings when disabled or on normal quit. A crash or force quit can prevent immediate restoration; reopen Shelf to restore its managed settings. Folder access is subject to macOS permission prompts.
 

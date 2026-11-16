@@ -12,7 +12,7 @@ Verify the bundle using the commands in [Building Shelf](build-guide.md#verify-t
 
 ## A new copy is missing
 
-Check the matching image, text or link switch in **Settings → Sources**, then make a fresh copy. Shelf skips existing clipboard contents at launch and supported sensitive markers. A single URL is routed to Links, while paragraphs remain text.
+Check the matching image, text or link switch in **Settings → Sources**, then make a fresh copy. Shelf skips existing clipboard contents at launch and supported sensitive markers. A single URL is routed to Links, while paragraphs remain text. A struck-through menu bar icon means clipboard capture is paused; choose **Resume capture** from the menu. Also check **Ignored apps** in **Settings → Sources**, and whether **Skip next copy** was ticked.
 
 ## Screenshots do not appear
 

@@ -10,6 +10,10 @@ Recent copies, saved content, folders and Trash show different sets of records. 
 
 Use the grid and list buttons in the toolbar to change presentation. The inspector button shows or hides details for the inspected item. The sidebar and content area can be resized to suit the window.
 
+## Filter by source app
+
+Open Filters and choose an app under **Copied from** to see only what was copied from it. The menu lists the apps that items in the Library were copied from. The inspector shows an item's source app under its date; its menu offers the same filter and **Ignore copies from…**, which stops future capture from that app without removing anything already saved.
+
 ## Sort the current view
 
 The Sort menu offers newest first, oldest first, title, reverse title, last copied and best match. When checking search results, consider both the query and the selected sort order.

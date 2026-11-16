@@ -10,6 +10,18 @@ Open Shelf, then use Control + Option + T to show or hide the shelves with the d
 
 In **Settings → Sources**, enable images, text or links individually. All three clipboard sources start disabled. Make a new copy after enabling a source; Shelf starts watching at the current clipboard change count.
 
+## Pause or skip capture
+
+Click the menu bar icon and choose **Pause clipboard capture** for 5 minutes, 1 hour or until you resume. The icon is struck through while capture is paused and the menu shows the time left, with **Resume capture** below it. Nothing copied during a pause is added later. A pause that has not run out continues after you quit and reopen Shelf. **Skip next copy** ignores only the next thing you copy. The same commands are in Actions. Screenshots and watched folders keep working during a pause.
+
+## Ignore an app
+
+**Settings → Sources → Ignored apps** lists apps whose copies Shelf never captures. Use **Add App…** to pick one from Applications, or **Add a running app**. The minus button removes an entry. For an item that shows a source app, **Ignore copies from…** in Actions, in the Library list's context menu or in the inspector adds that app. Shelf identifies the app from the copy itself when the app declares it, and otherwise from the app in front at that moment, so a copy made in the background can be attributed to another app.
+
+## See where a copy came from
+
+Clipboard items record the app they were copied from. A preview shows it in its title bar and the Library inspector shows it under the date. In Library, **Filters → Copied from** limits the view to one app. Items captured before sources were recorded, screenshots and watched-folder images have none.
+
 ## Copy a link
 
 A single web address is routed to Links. A paragraph that contains a link stays as text. Capturing the address and fetching its website title or thumbnail are separate settings.

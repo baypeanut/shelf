@@ -24,7 +24,7 @@ On a shelf, S takes down an item and Backspace undoes the latest take-down. In L
 
 ## Search the current surface
 
-Shift + S searches shelves. In Library, Command + F searches the current view, while Command + 0, 1, 2 and 3 select all types, images, texts and links respectively. Command + K opens searchable Actions.
+Shift + S searches shelves. In Library, Command + F searches the current view, while Command + 0, 1, 2 and 3 select all types, images, texts and links respectively. Command + K opens searchable Actions. Pausing and resuming clipboard capture, skipping the next copy and ignoring an item's source app are in Actions and have no shortcut of their own.
 
 ## Move focus in Library
 

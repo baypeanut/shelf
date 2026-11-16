@@ -21,9 +21,8 @@ import AppKit
             return self.onKey?(event) ?? false
         }
         let surface = PreviewSurface()
-        surface.wantsLayer = true; surface.layer?.cornerRadius = 20; surface.layer?.masksToBounds = true
         let label = self.message
-        label.font = .systemFont(ofSize: 18, weight: .medium)
+        label.font = .preferredFont(forTextStyle: .title3); label.textColor = .secondaryLabelColor
         let undo = NSButton(title: undoAction.title + " · " + keyboardBindings.title(undoAction), target: self, action: #selector(undoRemoval))
         let close = NSButton(title: L("Close preview"), target: self, action: #selector(closePreview))
         let stack = NSStackView(views: [label, undo, close])

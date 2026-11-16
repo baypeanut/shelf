@@ -61,15 +61,14 @@ enum LinkThumbnail {
         window.collectionBehavior = [.fullScreenAuxiliary, .canJoinAllSpaces]
         window.isOpaque = false; window.backgroundColor = .clear; window.hasShadow = true; window.isMovableByWindowBackground = true
         let surface = PreviewSurface()
-        surface.wantsLayer = true; surface.layer?.cornerRadius = 20; surface.layer?.masksToBounds = true
         image.imageScaling = .scaleProportionallyUpOrDown
         image.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         image.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         image.setContentHuggingPriority(.defaultLow, for: .horizontal)
         image.setContentHuggingPriority(.defaultLow, for: .vertical)
         image.setAccessibilityLabel(L("Link thumbnail")); image.wantsLayer = true
-        image.layer?.cornerRadius = 12; image.layer?.masksToBounds = true
-        title.font = .systemFont(ofSize: 21, weight: .semibold); title.maximumNumberOfLines = 3
+        image.layer?.cornerRadius = ShelfTheme.Radius.control; image.layer?.masksToBounds = true
+        title.font = .preferredFont(forTextStyle: .title2); title.maximumNumberOfLines = 3
         detail.font = .systemFont(ofSize: 12); detail.textColor = .secondaryLabelColor
         address.font = .systemFont(ofSize: 11); address.textColor = .secondaryLabelColor; address.maximumNumberOfLines = 2
         status.font = .systemFont(ofSize: 11); status.textColor = .secondaryLabelColor

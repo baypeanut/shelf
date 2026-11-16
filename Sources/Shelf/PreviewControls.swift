@@ -190,7 +190,7 @@ final class PreviewControls: NSVisualEffectView {
         } else { editButton = nil }
         super.init(frame: .zero)
         material = .hudWindow; blendingMode = .withinWindow; state = .active
-        wantsLayer = true; layer?.cornerRadius = 12
+        wantsLayer = true; layer?.cornerRadius = ShelfTheme.Radius.card; layer?.cornerCurve = .continuous
         let previous = Self.button("chevron.left", L("Previous item")), next = Self.button("chevron.right", L("Next item"))
         let copy = Self.button("doc.on.doc", L("Copy"))
         position.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)

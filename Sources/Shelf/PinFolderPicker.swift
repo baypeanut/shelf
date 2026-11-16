@@ -183,8 +183,9 @@ import AppKit
     init(heading: String, searchField: NSTextField, table: NSTableView) {
         super.init(frame: .zero)
         material = .hudWindow; blendingMode = .withinWindow; state = .active
-        wantsLayer = true; layer?.cornerRadius = 16; layer?.masksToBounds = true
-        let title = NSTextField(labelWithString: heading); title.font = .systemFont(ofSize: 11, weight: .semibold); title.textColor = .secondaryLabelColor
+        wantsLayer = true; layer?.cornerRadius = ShelfTheme.Radius.panel; layer?.cornerCurve = .continuous; layer?.masksToBounds = true
+        // A command ends in an ellipsis; the panel it opens does not.
+        let title = NSTextField(labelWithString: heading.hasSuffix("…") ? String(heading.dropLast()) : heading); title.font = .systemFont(ofSize: 11, weight: .semibold); title.textColor = .secondaryLabelColor
         let close = NSButton(image: NSImage(systemSymbolName: "xmark", accessibilityDescription: L("Close"))!, target: self, action: #selector(closePicker))
         close.isBordered = false; close.bezelStyle = .inline; close.setAccessibilityLabel(L("Close"))
         close.widthAnchor.constraint(equalToConstant: 24).isActive = true

@@ -52,7 +52,6 @@ final class TextPreview: NSObject, NSWindowDelegate, NSTextViewDelegate {
         window.isOpaque = false; window.backgroundColor = .clear; window.hasShadow = true
         window.isMovableByWindowBackground = true
         let surface = PreviewSurface(frame: NSRect(x: 0, y: 0, width: width, height: height))
-        surface.wantsLayer = true; surface.layer?.cornerRadius = 20; surface.layer?.masksToBounds = true
         let scroll = NSScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.hasVerticalScroller = true; scroll.scrollerStyle = .overlay

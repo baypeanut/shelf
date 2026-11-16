@@ -166,9 +166,10 @@ private enum NameAndPinFailure: Error, LocalizedError {
         confirm = NSButton(title: L("Pin with name"), target: nil, action: nil)
         super.init(frame: .zero)
         material = .hudWindow; blendingMode = .withinWindow; state = .active
-        wantsLayer = true; layer?.cornerRadius = 16; layer?.masksToBounds = true
+        wantsLayer = true; layer?.cornerRadius = ShelfTheme.Radius.panel; layer?.cornerCurve = .continuous; layer?.masksToBounds = true
         setAccessibilityIdentifier("name-and-pin-picker")
-        let title = NSTextField(labelWithString: L("Name and pin…"))
+        let heading = L("Name and pin…")
+        let title = NSTextField(labelWithString: heading.hasSuffix("…") ? String(heading.dropLast()) : heading)
         title.font = .systemFont(ofSize: 11, weight: .semibold); title.textColor = .secondaryLabelColor
         let close = NSButton(image: NSImage(systemSymbolName: "xmark", accessibilityDescription: L("Close"))!, target: self, action: #selector(cancelPicker))
         close.isBordered = false; close.bezelStyle = .inline; close.setAccessibilityLabel(L("Close"))

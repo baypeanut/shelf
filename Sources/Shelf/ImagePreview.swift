@@ -132,8 +132,8 @@ enum ImageMarkupCommand: CaseIterable, Equatable {
         browsingFrame = window.frame; isMarkupEditing = true; canvas.isMarkupEditing = true
         window.isMovableByWindowBackground = false; toolbar.isHidden = false
         controls.installLeadingAccessory(toolbar)
+        // The window rounds its own corners; the editing surface is a plain window background.
         surface.wantsLayer = true; surface.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-        surface.layer?.cornerRadius = 16; surface.layer?.masksToBounds = true
         let visible = window.screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1000, height: 750)
         let size = NSSize(width: min(visible.width * 0.94, max(820, window.frame.width)), height: min(visible.height * 0.88, max(480, window.frame.height)))
         let center = NSPoint(x: window.frame.midX, y: window.frame.midY)

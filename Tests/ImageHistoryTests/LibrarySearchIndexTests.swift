@@ -158,11 +158,17 @@ enum PreviousLibrary {
             let expected = try library.queryIDs(query)
             let expectedPage = try library.query(query, limit: 20, offset: offset).map(\.id)
             library.searchIndexDisabled = false
-            let actual = try library.queryIDs(query)
-            let actualPage = try library.query(query, limit: 20, offset: offset).map(\.id)
-            guard actual == expected, actualPage == expectedPage else {
-                XCTFail("Search \(number) with seed \(seed) differs: \(query)", file: file, line: line)
-                return
+            // Once with the index used whenever it can be, once as shipped,
+            // where a term found in many texts is read in full instead.
+            for fraction in [0, LibrarySearchIndex.scanFraction] {
+                library.searchScanFraction = fraction
+                let actual = try library.queryIDs(query)
+                let actualPage = try library.query(query, limit: 20, offset: offset).map(\.id)
+                guard actual == expected, actualPage == expectedPage else {
+                    library.searchScanFraction = LibrarySearchIndex.scanFraction
+                    XCTFail("Search \(number) with seed \(seed) differs: \(query)", file: file, line: line)
+                    return
+                }
             }
             if query.search.libraryFolded.split(whereSeparator: \.isWhitespace).contains(where: {
                 LibrarySearchIndex.match(String($0)) != nil

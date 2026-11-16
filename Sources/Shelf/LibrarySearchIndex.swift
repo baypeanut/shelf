@@ -124,14 +124,15 @@ enum LibrarySearchIndex {
         let matches = terms.compactMap(match)
         guard !terms.isEmpty, matches.count == terms.count else { return nil }
         var arms = [
-            "SELECT d.item AS item FROM search_trigram JOIN search_docs d ON d.doc=search_trigram.rowid WHERE search_trigram MATCH ?",
+            "SELECT d.item AS item FROM search_trigram CROSS JOIN search_docs d ON d.doc=search_trigram.rowid WHERE search_trigram MATCH ?",
             "SELECT item FROM search_unindexed",
         ]
         var values: [SQLValue] = [.text(matches.joined(separator: " AND "))]
         if !complete { arms.append("SELECT x.id FROM items x WHERE NOT EXISTS(SELECT 1 FROM search_docs d WHERE d.item=x.id)") }
         let recognized = "(" + terms.map { _ in "instr(a.content,?)>0" }.joined(separator: " OR ") + ")"
         if let kind {
-            arms.append("SELECT a.item FROM image_analysis a JOIN items x ON x.id=a.item WHERE x.kind=? AND \(recognized)")
+            // In this order: there are far fewer analysed images than items of any kind.
+            arms.append("SELECT a.item FROM image_analysis a CROSS JOIN items x ON x.id=a.item WHERE x.kind=? AND \(recognized)")
             values.append(.text(kind.rawValue))
         } else {
             arms.append("SELECT a.item FROM image_analysis a WHERE \(recognized)")
@@ -142,6 +143,25 @@ enum LibrarySearchIndex {
             values += extraIDs.map { .text($0.uuidString) }
         }
         return ("(" + arms.joined(separator: " UNION ") + ")", values)
+    }
+
+    /// A term found in more than one text in this many is not narrowed.
+    static let scanFraction: Int64 = 10
+
+    /// Whether the index should narrow a search for `terms`. Looking up each
+    /// candidate costs more than reading rows in order, so when the trigrams
+    /// are in a large share of all texts the full read is the faster of two
+    /// ways to the same result. The count stops as soon as the answer is known.
+    static func narrows(terms: [String], in database: LibraryDatabase, fraction: Int64 = scanFraction) -> Bool {
+        let matches = terms.compactMap(match)
+        guard !terms.isEmpty, matches.count == terms.count else { return false }
+        guard fraction > 0, let texts = try? database.rows("SELECT max(doc) AS n FROM search_docs").first?["n"]?.number else { return true }
+        let limit = max(256, texts / fraction)
+        let hits = try? database.rows(
+            "SELECT count(*) AS n FROM (SELECT rowid FROM search_trigram WHERE search_trigram MATCH ? LIMIT ?)",
+            [.text(matches.joined(separator: " AND ")), .integer(limit + 1)]
+        ).first?["n"]?.number
+        return (hits ?? 0) <= limit
     }
 
     // MARK: Background maintenance

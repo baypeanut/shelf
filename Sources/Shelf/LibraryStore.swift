@@ -103,6 +103,20 @@ struct LibraryQuery: Equatable {
 }
 
 private enum LibrarySQL {
+    /// The folded terms of a text search, as every comparison uses them.
+    static func terms(_ query: LibraryQuery) -> [String] {
+        guard query.searchMode != .visual, !query.search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+        return query.search.libraryFolded.split(whereSeparator: \.isWhitespace).map(String.init)
+    }
+    /// What to pass as `indexComplete` for this search on this connection:
+    /// nil when the library has no index or the index would not help.
+    static func plan(_ query: LibraryQuery, in database: LibraryDatabase, indexComplete: Bool?, scanFraction: Int64) -> Bool? {
+        guard let indexComplete else { return nil }
+        let narrowing = terms(query).filter { LibrarySearchIndex.match($0) != nil }
+        // Paging without a search still chooses its rows before reading them.
+        if narrowing.isEmpty { return indexComplete }
+        return LibrarySearchIndex.narrows(terms: narrowing, in: database, fraction: scanFraction) ? indexComplete : nil
+    }
     /// `indexComplete` is nil when the library has no search index; the query
     /// then reads every item in scope, as it always did. Otherwise the terms
     /// the index can narrow choose the candidate items, and the same conditions
@@ -144,12 +158,10 @@ private enum LibrarySQL {
         if !query.search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             var searchParts = [String](), searchValues = [SQLValue]()
             var narrowing = [String]()
-            if query.searchMode != .visual {
-                for term in query.search.libraryFolded.split(whereSeparator: \.isWhitespace) {
-                    searchParts.append("(instr(i.search,?)>0 OR EXISTS(SELECT 1 FROM image_analysis a WHERE a.item=i.id AND a.path=i.path AND instr(a.content,?)>0))")
-                    searchValues += [.text(String(term)), .text(String(term))]
-                    if LibrarySearchIndex.match(String(term)) != nil { narrowing.append(String(term)) }
-                }
+            for term in terms(query) {
+                searchParts.append("(instr(i.search,?)>0 OR EXISTS(SELECT 1 FROM image_analysis a WHERE a.item=i.id AND a.path=i.path AND instr(a.content,?)>0))")
+                searchValues += [.text(term), .text(term)]
+                if LibrarySearchIndex.match(term) != nil { narrowing.append(term) }
             }
             let text = searchParts.isEmpty ? "0" : "(" + searchParts.joined(separator: " AND ") + ")"
             textRank = text; textRankValues = searchValues
@@ -217,6 +229,8 @@ extension String {
     /// Makes search read every item, as it does in a library without an
     /// index, so tests can compare the two.
     var searchIndexDisabled = false
+    /// See `LibrarySearchIndex.scanFraction`; 0 in tests makes every search that can use the index use it.
+    var searchScanFraction = LibrarySearchIndex.scanFraction
     var searchIndexComplete: Bool? { searchIndexDisabled ? nil : searchStatus?.isComplete }
     private let now: () -> Date
     private struct ShelfRemoval {
@@ -642,21 +656,23 @@ extension String {
         }
     }
     func query(_ query: LibraryQuery, limit: Int = 80, offset: Int = 0) throws -> [LibraryRecord] {
-        let (sql, values) = LibrarySQL.query(query, limit: limit, offset: offset, now: now(), indexComplete: searchIndexComplete); return try LibrarySQL.decode(db.rows(sql, values))
+        let plan = LibrarySQL.plan(query, in: db, indexComplete: searchIndexComplete, scanFraction: searchScanFraction)
+        let (sql, values) = LibrarySQL.query(query, limit: limit, offset: offset, now: now(), indexComplete: plan); return try LibrarySQL.decode(db.rows(sql, values))
     }
     func queryAsync(_ query: LibraryQuery, limit: Int = 80, offset: Int = 0, completion: @escaping (Result<[LibraryRecord], Error>) -> Void) {
-        let url = databaseURL, date = now(), indexComplete = searchIndexComplete
+        let url = databaseURL, date = now(), indexComplete = searchIndexComplete, fraction = searchScanFraction
         readerQueue.async {
             let result = Result { () throws -> [LibraryRecord] in
                 let db = try LibraryDatabase(url: url, readOnly: true, verify: false)
-                let (sql, values) = LibrarySQL.query(query, limit: limit, offset: offset, now: date, indexComplete: indexComplete)
+                let plan = LibrarySQL.plan(query, in: db, indexComplete: indexComplete, scanFraction: fraction)
+                let (sql, values) = LibrarySQL.query(query, limit: limit, offset: offset, now: date, indexComplete: plan)
                 return try LibrarySQL.decode(db.rows(sql, values))
             }
             DispatchQueue.main.async { completion(result) }
         }
     }
     func cardSummariesAsync(_ query: LibraryQuery, limit: Int = 80, offset: Int = 0, completion: @escaping (Result<[LibraryCardSummary], Error>) -> Void) {
-        let url = databaseURL, date = now(), indexComplete = searchIndexComplete
+        let url = databaseURL, date = now(), indexComplete = searchIndexComplete, fraction = searchScanFraction
         readerQueue.async {
             let result = Result { () throws -> [LibraryCardSummary] in
                 let connection = try LibraryDatabase(url: url, readOnly: true, verify: false)
@@ -664,7 +680,8 @@ extension String {
                 // snapshot, without per-card database reads on the UI thread.
                 let tags = "FROM item_tags it JOIN tags t ON t.id=it.tag WHERE it.item=i.id ORDER BY t.folded,t.id"
                 let projection = "i.payload,(SELECT t.name \(tags) LIMIT 1) AS tag0,(SELECT t.name \(tags) LIMIT 1 OFFSET 1) AS tag1,(SELECT count(*) FROM item_tags it WHERE it.item=i.id) AS tag_count"
-                let (sql, values) = LibrarySQL.query(query, limit: min(limit, 80), offset: offset, now: date, projection: projection, indexComplete: indexComplete)
+                let plan = LibrarySQL.plan(query, in: connection, indexComplete: indexComplete, scanFraction: fraction)
+                let (sql, values) = LibrarySQL.query(query, limit: min(limit, 80), offset: offset, now: date, projection: projection, indexComplete: plan)
                 let rows = try connection.rows(sql, values), records = try LibrarySQL.decode(rows)
                 return zip(records, rows).map { record, row in
                     LibraryCardSummary(record: record, tagNames: [row["tag0"]?.string, row["tag1"]?.string].compactMap { $0 }, tagCount: Int(row["tag_count"]?.number ?? 0))
@@ -674,15 +691,17 @@ extension String {
         }
     }
     func queryIDs(_ query: LibraryQuery) throws -> [UUID] {
-        let (sql, values) = LibrarySQL.query(query, limit: 1, offset: 0, now: now(), projection: "i.id", unlimited: true, indexComplete: searchIndexComplete)
+        let plan = LibrarySQL.plan(query, in: db, indexComplete: searchIndexComplete, scanFraction: searchScanFraction)
+        let (sql, values) = LibrarySQL.query(query, limit: 1, offset: 0, now: now(), projection: "i.id", unlimited: true, indexComplete: plan)
         return try db.rows(sql, values).compactMap { $0["id"]?.string.flatMap(UUID.init(uuidString:)) }
     }
     func queryIDsAsync(_ query: LibraryQuery, completion: @escaping (Result<[UUID], Error>) -> Void) {
-        let url = databaseURL, date = now(), indexComplete = searchIndexComplete
+        let url = databaseURL, date = now(), indexComplete = searchIndexComplete, fraction = searchScanFraction
         readerQueue.async {
             let result = Result { () throws -> [UUID] in
                 let connection = try LibraryDatabase(url: url, readOnly: true, verify: false)
-                let (sql, values) = LibrarySQL.query(query, limit: 1, offset: 0, now: date, projection: "i.id", unlimited: true, indexComplete: indexComplete)
+                let plan = LibrarySQL.plan(query, in: connection, indexComplete: indexComplete, scanFraction: fraction)
+                let (sql, values) = LibrarySQL.query(query, limit: 1, offset: 0, now: date, projection: "i.id", unlimited: true, indexComplete: plan)
                 return try connection.rows(sql, values).compactMap { $0["id"]?.string.flatMap(UUID.init(uuidString:)) }
             }
             DispatchQueue.main.async { completion(result) }

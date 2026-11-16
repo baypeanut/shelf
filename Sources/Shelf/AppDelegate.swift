@@ -1079,6 +1079,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             controller.model.onPasteRequested = { [weak self] in self?.pasteItems($0) }
             controller.model.onImageTextCopyRequested = { [weak self] in self?.copyImageText($0) }
             controller.model.onCommandsRequested = { [weak self] in self?.showCommands() }
+            controller.model.onEmptyTrashRequested = { [weak self] in self?.confirmEmptyTrash() }
             libraryController = controller
         }
         closePreview(); if isRevealed { setRevealed(false, restoreApplication: false) }
@@ -1114,6 +1115,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if alert.runModal() == .alertFirstButtonReturn {
             do {
                 try store.clearUnsavedHistory(snapshot)
+                if let session = previewSession { updatePreview(session) }
+                settingsController?.model.refresh()
+            } catch { NSAlert(error: error).runModal() }
+        }
+    }
+
+    /// The one permanent deletion a person can ask for. It names the count,
+    /// purges exactly what that count described, and has no default button.
+    private func confirmEmptyTrash() {
+        guard flushPreviewEdits(), libraryController?.flush() ?? true, let store = line.library else { return }
+        let snapshot: (count: Int, asOf: Date)
+        do { snapshot = try store.trashSnapshot() }
+        catch { NSAlert(error: error).runModal(); return }
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = String(format: L("Permanently delete %d items in Trash?"), snapshot.count)
+        alert.informativeText = L("This cannot be undone. Copies Shelf made move to the system Trash; original files stay in place.")
+        let empty = alert.addButton(withTitle: L("Empty Trash")), cancel = alert.addButton(withTitle: L("Cancel"))
+        empty.hasDestructiveAction = true; empty.keyEquivalent = ""; empty.isEnabled = snapshot.count > 0
+        cancel.keyEquivalent = "\u{1b}"
+        if alert.runModal() == .alertFirstButtonReturn {
+            do {
+                try store.emptyTrash(asOf: snapshot.asOf)
                 if let session = previewSession { updatePreview(session) }
                 settingsController?.model.refresh()
             } catch { NSAlert(error: error).runModal() }
@@ -1825,6 +1849,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         switch action {
         case .settings: showSettings()
         case .clearUnsavedHistory: confirmClearHistory()
+        case .emptyTrash: confirmEmptyTrash()
         case .settingsGeneral, .settingsHistory, .settingsSources, .settingsShortcuts, .settingsAbout:
             showSettings()
             settingsController?.model.section = action == .settingsGeneral ? .general : action == .settingsHistory ? .history : action == .settingsSources ? .sources : action == .settingsShortcuts ? .shortcuts : .about

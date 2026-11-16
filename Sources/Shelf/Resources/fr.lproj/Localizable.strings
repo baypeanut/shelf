@@ -428,3 +428,10 @@
 "Try saving again" = "Try saving again";
 "Discard changes" = "Discard changes";
 "Keep editing" = "Keep editing";
+"Empty Trash…" = "Vider la corbeille…";
+"Empty Trash" = "Vider la corbeille";
+"Permanently delete %d items in Trash?" = "Supprimer définitivement %d éléments de la corbeille ?";
+"This cannot be undone. Copies Shelf made move to the system Trash; original files stay in place." = "Cette action est irréversible. Les copies créées par Shelf sont placées dans la corbeille du système ; les fichiers d’origine restent en place.";
+"Items in Trash" = "Éléments dans la corbeille";
+"Keep until Trash is emptied" = "Conserver jusqu’au vidage de la corbeille";
+"Items kept in Trash longer than this are permanently deleted." = "Les éléments restés plus longtemps dans la corbeille sont supprimés définitivement.";

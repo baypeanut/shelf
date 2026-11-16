@@ -285,6 +285,12 @@ private struct SettingsView: View {
                     ForEach(ImageHistory.dayChoices, id: \.self) { Text(String(format: L("Keep for %d days"), $0)).tag($0) }
                 }
             }
+            Picker(L("Items in Trash"), selection: model.binding(get: { line.trashRetentionDays }, set: { line.setTrashRetentionDays($0) })) {
+                ForEach(HistoryRetention.trashDayChoices, id: \.self) { days in
+                    Text(days == 0 ? L("Keep until Trash is emptied") : String(format: L("Keep for %d days"), days)).tag(days)
+                }
+            }
+            Text(L("Items kept in Trash longer than this are permanently deleted.")).font(.caption).foregroundStyle(.secondary)
             Picker(L("Copies to clear"), selection: $historyCleanupKind) {
                 Text(L("All types")).tag(nil as LibraryKind?)
                 Text(L("Images")).tag(LibraryKind.image as LibraryKind?)

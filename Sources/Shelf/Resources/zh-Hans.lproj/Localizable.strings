@@ -428,3 +428,10 @@
 "Try saving again" = "Try saving again";
 "Discard changes" = "Discard changes";
 "Keep editing" = "Keep editing";
+"Empty Trash…" = "清倒废纸篓…";
+"Empty Trash" = "清倒废纸篓";
+"Permanently delete %d items in Trash?" = "要永久删除废纸篓中的 %d 个项目吗？";
+"This cannot be undone. Copies Shelf made move to the system Trash; original files stay in place." = "此操作无法撤销。Shelf 创建的副本会移到系统废纸篓；原始文件保持不变。";
+"Items in Trash" = "废纸篓中的项目";
+"Keep until Trash is emptied" = "保留到清倒废纸篓为止";
+"Items kept in Trash longer than this are permanently deleted." = "在废纸篓中存放超过此期限的项目会被永久删除。";

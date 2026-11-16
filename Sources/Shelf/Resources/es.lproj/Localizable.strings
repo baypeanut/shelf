@@ -428,3 +428,10 @@
 "Try saving again" = "Try saving again";
 "Discard changes" = "Discard changes";
 "Keep editing" = "Keep editing";
+"Empty Trash…" = "Vaciar la Papelera…";
+"Empty Trash" = "Vaciar la Papelera";
+"Permanently delete %d items in Trash?" = "¿Eliminar definitivamente %d elementos de la Papelera?";
+"This cannot be undone. Copies Shelf made move to the system Trash; original files stay in place." = "Esta acción no se puede deshacer. Las copias creadas por Shelf se mueven a la Papelera del sistema; los archivos originales no se modifican.";
+"Items in Trash" = "Elementos en la Papelera";
+"Keep until Trash is emptied" = "Conservar hasta vaciar la Papelera";
+"Items kept in Trash longer than this are permanently deleted." = "Los elementos que lleven más tiempo en la Papelera se eliminan definitivamente.";

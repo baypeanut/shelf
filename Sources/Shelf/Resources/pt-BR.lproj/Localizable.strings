@@ -428,3 +428,10 @@
 "Try saving again" = "Try saving again";
 "Discard changes" = "Discard changes";
 "Keep editing" = "Keep editing";
+"Empty Trash…" = "Esvaziar o Lixo…";
+"Empty Trash" = "Esvaziar o Lixo";
+"Permanently delete %d items in Trash?" = "Apagar definitivamente %d itens do Lixo?";
+"This cannot be undone. Copies Shelf made move to the system Trash; original files stay in place." = "Esta ação não pode ser desfeita. As cópias criadas pelo Shelf vão para o Lixo do sistema; os arquivos originais permanecem no lugar.";
+"Items in Trash" = "Itens no Lixo";
+"Keep until Trash is emptied" = "Manter até esvaziar o Lixo";
+"Items kept in Trash longer than this are permanently deleted." = "Os itens que ficarem no Lixo por mais tempo são apagados definitivamente.";

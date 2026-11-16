@@ -928,6 +928,8 @@ extension String {
     func trashCount(olderThan cutoff: Date = .distantFuture) throws -> Int {
         Int(try db.rows("SELECT count(*) AS n FROM items WHERE deleted IS NOT NULL AND deleted<=?", [.real(cutoff.timeIntervalSince1970)]).first?["n"]?.number ?? 0)
     }
+    /// What an Empty Trash confirmation describes, and the moment it describes.
+    func trashSnapshot() throws -> (count: Int, asOf: Date) { let date = now(); return (try trashCount(olderThan: date), date) }
     /// Permanently removes items that entered Trash at or before `cutoff`,
     /// with their folder, tag, search and identity rows, in one transaction.
     /// Restored items and items trashed later are untouched. Files Shelf made

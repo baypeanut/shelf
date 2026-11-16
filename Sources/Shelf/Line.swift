@@ -785,6 +785,14 @@ final class Line: ObservableObject {
         texts.prune()
         syncHistory()
     }
+    /// 0 keeps trashed items until Trash is emptied by hand.
+    var trashRetentionDays: Int { HistoryRetention.trashDays(defaults: defaults) ?? 0 }
+    /// Takes effect at the next scheduled cleanup, never at the moment of the
+    /// choice: a shorter period must not delete anything while it is being picked.
+    func setTrashRetentionDays(_ days: Int) {
+        guard HistoryRetention.trashDayChoices.contains(days) else { return }
+        objectWillChange.send(); defaults.set(days, forKey: HistoryRetention.trashKey)
+    }
     func setRetentionDays(_ days: Int, for kind: LibraryKind) {
         guard ImageHistory.dayChoices.contains(days) else { return }
         if kind == .image {

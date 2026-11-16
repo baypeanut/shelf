@@ -554,6 +554,8 @@ enum HistoryTestRunner {
             ("testFileThatCannotMoveToTrashDoesNotBringItsRowBack", trashPurge.testFileThatCannotMoveToTrashDoesNotBringItsRowBack),
             ("testPurgedTextIsNoLongerInTheDatabaseFiles", trashPurge.testPurgedTextIsNoLongerInTheDatabaseFiles),
             ("testCompactionReturnsFreedPagesAndKeepsTheLibraryUsable", trashPurge.testCompactionReturnsFreedPagesAndKeepsTheLibraryUsable),
+            ("testTrashPeriodSettingPersistsRejectsUnknownValuesAndDeletesNothingWhenChosen", trashPurge.testTrashPeriodSettingPersistsRejectsUnknownValuesAndDeletesNothingWhenChosen),
+            ("testEmptyTrashIsACatalogCommandAndALibraryRequest", trashPurge.testEmptyTrashIsACatalogCommandAndALibraryRequest),
             ("testFailedPinFolderTagOrEditRecoversThePrivateCopyItMade", libraryStore.testFailedPinFolderTagOrEditRecoversThePrivateCopyItMade),
             ("testBatchThatFailsMidwayRecoversCopiesMadeForEarlierItems", libraryStore.testBatchThatFailsMidwayRecoversCopiesMadeForEarlierItems),
             ("testFailedPrivateWriteLeavesNoStagedFile", libraryStore.testFailedPrivateWriteLeavesNoStagedFile),

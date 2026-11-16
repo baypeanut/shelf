@@ -428,3 +428,10 @@
 "Try saving again" = "Try saving again";
 "Discard changes" = "Discard changes";
 "Keep editing" = "Keep editing";
+"Empty Trash…" = "Empty Trash…";
+"Empty Trash" = "Empty Trash";
+"Permanently delete %d items in Trash?" = "Permanently delete %d items in Trash?";
+"This cannot be undone. Copies Shelf made move to the system Trash; original files stay in place." = "This cannot be undone. Copies Shelf made move to the system Trash; original files stay in place.";
+"Items in Trash" = "Items in Trash";
+"Keep until Trash is emptied" = "Keep until Trash is emptied";
+"Items kept in Trash longer than this are permanently deleted." = "Items kept in Trash longer than this are permanently deleted.";

@@ -428,3 +428,10 @@
 "Try saving again" = "Try saving again";
 "Discard changes" = "Discard changes";
 "Keep editing" = "Keep editing";
+"Empty Trash…" = "ゴミ箱を空にする…";
+"Empty Trash" = "ゴミ箱を空にする";
+"Permanently delete %d items in Trash?" = "ゴミ箱内の%d項目を完全に削除しますか？";
+"This cannot be undone. Copies Shelf made move to the system Trash; original files stay in place." = "この操作は取り消せません。Shelfが作成したコピーはシステムのゴミ箱に移動され、元のファイルはそのまま残ります。";
+"Items in Trash" = "ゴミ箱内の項目";
+"Keep until Trash is emptied" = "ゴミ箱を空にするまで保持";
+"Items kept in Trash longer than this are permanently deleted." = "これより長くゴミ箱にある項目は完全に削除されます。";

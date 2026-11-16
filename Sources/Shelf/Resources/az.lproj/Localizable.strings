@@ -428,3 +428,10 @@
 "Try saving again" = "Try saving again";
 "Discard changes" = "Discard changes";
 "Keep editing" = "Keep editing";
+"Empty Trash…" = "Zibil qutusunu boşalt…";
+"Empty Trash" = "Zibil qutusunu boşalt";
+"Permanently delete %d items in Trash?" = "Zibil qutusundakı %d element həmişəlik silinsin?";
+"This cannot be undone. Copies Shelf made move to the system Trash; original files stay in place." = "Bu əməliyyat geri qaytarıla bilməz. Shelf-in yaratdığı nüsxələr sistemin Zibil qutusuna köçürülür; orijinal fayllar yerində qalır.";
+"Items in Trash" = "Zibil qutusundakı elementlər";
+"Keep until Trash is emptied" = "Zibil qutusu boşaldılana qədər saxla";
+"Items kept in Trash longer than this are permanently deleted." = "Zibil qutusunda bundan uzun qalan elementlər həmişəlik silinir.";

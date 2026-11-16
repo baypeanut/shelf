@@ -428,3 +428,10 @@
 "Try saving again" = "Yeniden kaydet";
 "Discard changes" = "Değişiklikleri bırak";
 "Keep editing" = "Düzenlemeye devam et";
+"Empty Trash…" = "Çöpü boşalt…";
+"Empty Trash" = "Çöpü boşalt";
+"Permanently delete %d items in Trash?" = "Çöp’teki %d içerik kalıcı olarak silinsin mi?";
+"This cannot be undone. Copies Shelf made move to the system Trash; original files stay in place." = "Bu işlem geri alınamaz. Shelf’in oluşturduğu kopyalar sistemin Çöp Kutusu’na taşınır; özgün dosyalar yerinde kalır.";
+"Items in Trash" = "Çöp’teki içerikler";
+"Keep until Trash is emptied" = "Çöp boşaltılana kadar tut";
+"Items kept in Trash longer than this are permanently deleted." = "Çöp’te bundan uzun süre kalan içerikler kalıcı olarak silinir.";

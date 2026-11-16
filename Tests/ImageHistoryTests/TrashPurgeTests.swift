@@ -150,6 +150,34 @@ import XCTest
         query.search = "ordinary"; XCTAssertEqual(try library.queryIDs(query).count, 40)
     }
 
+    func testTrashPeriodSettingPersistsRejectsUnknownValuesAndDeletesNothingWhenChosen() throws {
+        let f = try fixture(); defer { f.cleanup() }; let library = try store(f)
+        let line = Line(defaults: f.defaults, inbox: f.inbox, now: { f.date }, breeze: false, moveToTrash: fixtureTrash(f.folder), library: library)
+        XCTAssertEqual(line.trashRetentionDays, 30)
+        let old = try XCTUnwrap(library.captureText("trashed twenty days ago")); try library.trash([old.id])
+        f.date = f.date.addingTimeInterval(20 * day)
+        line.setTrashRetentionDays(12); XCTAssertEqual(line.trashRetentionDays, 30)
+        line.setTrashRetentionDays(7); XCTAssertEqual(line.trashRetentionDays, 7); XCTAssertEqual(f.defaults.integer(forKey: "trashRetentionDays"), 7)
+        // Picking a shorter period is not itself a deletion; the next cleanup applies it.
+        XCTAssertNotNil(try library.item(old.id))
+        line.setTrashRetentionDays(0); XCTAssertEqual(line.trashRetentionDays, 0); line.prune(); XCTAssertNotNil(try library.item(old.id))
+        line.setTrashRetentionDays(7); line.prune(); XCTAssertNil(try library.item(old.id))
+    }
+
+    func testEmptyTrashIsACatalogCommandAndALibraryRequest() throws {
+        let f = try fixture(); defer { f.cleanup() }; let library = try store(f), model = LibraryModel(store: library)
+        var context = ActionBarCatalog.Context()
+        let bindings = KeyboardBindings(defaults: f.defaults)
+        func enabled() throws -> Bool { try XCTUnwrap(ActionBarCatalog.entries(context: context, bindings: bindings).first { $0.action == .menu(.emptyTrash) }?.command).isEnabled }
+        XCTAssertTrue(try enabled()); context.libraryAvailable = false; XCTAssertFalse(try enabled())
+        let trashed = try XCTUnwrap(library.captureText("in trash")), later = try XCTUnwrap(library.captureText("trashed later")); try library.trash([trashed.id])
+        var requests = 0; model.onEmptyTrashRequested = { requests += 1 }
+        model.onEmptyTrashRequested?(); XCTAssertEqual(requests, 1); XCTAssertNotNil(try library.item(trashed.id))
+        let snapshot = try library.trashSnapshot(); XCTAssertEqual(snapshot.count, 1)
+        f.date = f.date.addingTimeInterval(60); try library.trash([later.id])
+        XCTAssertEqual(try library.emptyTrash(asOf: snapshot.asOf), [trashed.id]); XCTAssertNotNil(try library.item(later.id))
+    }
+
     func testCompactionReturnsFreedPagesAndKeepsTheLibraryUsable() throws {
         let f = try fixture(); defer { f.cleanup() }; let library = try store(f)
         let kept = try XCTUnwrap(library.captureText("kept synthetic note"))

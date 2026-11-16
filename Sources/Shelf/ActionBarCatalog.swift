@@ -23,7 +23,7 @@ enum ActionBarAction: Equatable {
 }
 
 enum ActionBarMenuAction: String, CaseIterable {
-    case settings, settingsGeneral, settingsHistory, settingsSources, settingsShortcuts, settingsAbout, clearUnsavedHistory
+    case settings, settingsGeneral, settingsHistory, settingsSources, settingsShortcuts, settingsAbout, clearUnsavedHistory, emptyTrash
     case newNote, newFolder, newSubfolder, renameFolder, removeFolder, renameTag, removeTag, retain, restore, editDetails
     case scopeSaved, scopeFavorites, scopeUnorganized, scopeRecent, scopeTrash
     case grid, list, toggleSidebar, toggleInspector, toggleFullscreen, filters, clearFilters
@@ -401,7 +401,7 @@ enum ActionBarMenuAction: String, CaseIterable {
         case .copyLatestImage: return require(c.hasLatestImage, L("No images on the line"))
         case .checkUpdates: return require(c.canCheckUpdates, L("Update checks unavailable"))
         case .installUpdate: return require(c.canInstallUpdate, L("No update available"))
-        case .clearUnsavedHistory: return require(c.libraryAvailable, L("Library unavailable"))
+        case .clearUnsavedHistory, .emptyTrash: return require(c.libraryAvailable, L("Library unavailable"))
         case .settings, .settingsGeneral, .settingsHistory, .settingsSources, .settingsShortcuts, .settingsAbout,
              .toggleLine, .openScreenshotsFolder, .releases, .quit: return (true, "")
         }
@@ -457,6 +457,7 @@ enum ActionBarMenuAction: String, CaseIterable {
         case .settingsGeneral: return (L("General") + " · " + L("Settings"), app, "slider.horizontal.3", ["appearance", "theme", "color", "size", "language", "sounds", "login", "genel", "görünüm", "renk", "boyut", "dil", "ses", "açılış"])
         case .settingsHistory: return (L("History") + " · " + L("Settings"), app, "clock.arrow.circlepath", ["history", "retention", "days", "time", "geçmiş", "süre", "gün"])
         case .clearUnsavedHistory: return (L("Clear unsaved copies…"), app, "trash", ["history", "clear", "cleanup", "unsaved", "geçmiş", "temizle", "kaydedilmemiş"])
+        case .emptyTrash: return (L("Empty Trash…"), app, "trash.slash", ["trash", "empty", "delete", "permanent", "purge", "çöp", "boşalt", "kalıcı", "sil"])
         case .settingsSources: return (L("Sources") + " · " + L("Settings"), app, "tray.and.arrow.down", ["sources", "capture", "clipboard", "screenshots", "watch folder", "kaynak", "yakala", "pano", "ekran görüntüsü", "izle"])
         case .settingsShortcuts: return (L("Keyboard shortcuts") + " · " + L("Settings"), app, "keyboard", ["keyboard", "shortcut", "keys", "remap", "accessibility", "klavye", "kısayol", "tuş", "erişilebilirlik"])
         case .settingsAbout: return (L("About") + " · " + L("Settings"), app, "info.circle", ["about", "version", "updates", "hakkında", "sürüm", "güncelleme"])

@@ -565,6 +565,8 @@ enum HistoryTestRunner {
             ("testHTTPParserStreamsFixedChunkedAndConnectionCloseBodies", publicLinks.testHTTPParserStreamsFixedChunkedAndConnectionCloseBodies),
             ("testHTTPParserRejectsAmbiguousTruncatedCompressedAndOversizedResponses", publicLinks.testHTTPParserRejectsAmbiguousTruncatedCompressedAndOversizedResponses),
             ("testHTMLExtractsBoundedTextAndOneSafeThumbnailWithoutExecutingOrFollowingOtherResources", publicLinks.testHTMLExtractsBoundedTextAndOneSafeThumbnailWithoutExecutingOrFollowingOtherResources),
+            ("testHTMLOfUnclosedTagsIsReadInOnePassWithoutStalling", publicLinks.testHTMLOfUnclosedTagsIsReadInOnePassWithoutStalling),
+            ("testHTMLScannerMatchesTheOriginalPatternsOnSyntheticMarkup", publicLinks.testHTMLScannerMatchesTheOriginalPatternsOnSyntheticMarkup),
             ("testMetadataConcurrencyBackoffPrivateLinksAndUserTitle", libraryInteraction.testMetadataConcurrencyBackoffPrivateLinksAndUserTitle),
             ("testMetadataCancellationDoesNotWriteLateResultOrRevealShelf", libraryInteraction.testMetadataCancellationDoesNotWriteLateResultOrRevealShelf),
             ("testLinkPreviewThatCannotBeSavedLeavesNoThumbnailFile", libraryInteraction.testLinkPreviewThatCannotBeSavedLeavesNoThumbnailFile),

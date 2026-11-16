@@ -89,6 +89,60 @@ import XCTest
         XCTAssertEqual(long.title?.count, 500)
         XCTAssertThrowsError(try PublicLinkHTMLMetadata(data: Data(repeating: 65, count: 512 * 1024 + 1), url: url))
     }
+
+    func testHTMLOfUnclosedTagsIsReadInOnePassWithoutStalling() throws {
+        let url = URL(string: "https://public.example.org/page")!, limit = 512 * 1024
+        let longTag = "<meta " + String(repeating: "a", count: 8100) + ">"
+        // Each of these once cost a scan of the rest of the page per tag: minutes of uninterruptible work.
+        for unit in ["<!--", "<script>", "<script", "<style>", "<style ", "<meta ", "<meta a='", "<title>", "<title", "<title></title ", "</script ", longTag, "<meta a=\"b\" c", "<<"] {
+            let page = String(repeating: unit, count: (limit - 200) / unit.utf8.count) + "<title>Tail</title><meta name=author content='Writer'>"
+            let started = Date(), parsed = try PublicLinkHTMLMetadata(data: Data(page.utf8), url: url)
+            XCTAssertTrue(Date().timeIntervalSince(started) < 5, "\(unit.prefix(12)) took \(Date().timeIntervalSince(started)) s")
+            _ = parsed.title
+        }
+        let unclosed = "<script><!--<style>" + String(repeating: "<script <!-- <style ", count: 2000)
+        let parsed = try PublicLinkHTMLMetadata(data: Data(("<title>Kept</title><meta name=author content='Writer'>" + unclosed).utf8), url: url)
+        XCTAssertEqual(parsed.title, "Kept"); XCTAssertEqual(parsed.author, "Writer")
+    }
+
+    func testHTMLScannerMatchesTheOriginalPatternsOnSyntheticMarkup() throws {
+        func scalars(_ value: String) -> [UInt32] { value.unicodeScalars.map(\.value) }
+        func full(_ value: String) -> NSRange { NSRange(value.startIndex..., in: value) }
+        let hidden = try NSRegularExpression(pattern: #"(?is)<!--.*?-->|<script\b[^>]*>.*?</script\s*>|<style\b[^>]*>.*?</style\s*>"#)
+        let meta = try NSRegularExpression(pattern: #"(?is)<meta\b([^>]{0,8192})>"#)
+        let attributes = try NSRegularExpression(pattern: #"([A-Za-z_:][A-Za-z0-9_:.-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))"#)
+        let title = try NSRegularExpression(pattern: #"(?is)<title\b[^>]*>(.{0,8192}?)</title\s*>"#)
+        let tag = try NSRegularExpression(pattern: #"<[^>]*>"#)
+        func check(_ page: String, attributePattern: Bool = true) {
+            let label = page.count > 200 ? "\(page.prefix(40))… (\(page.count))" : page.debugDescription
+            XCTAssertEqual(scalars(PublicLinkHTMLScanner.withoutHiddenMarkup(page)), scalars(hidden.stringByReplacingMatches(in: page, range: full(page), withTemplate: "")), "hidden \(label)")
+            XCTAssertEqual(scalars(PublicLinkHTMLScanner.withoutTags(page)), scalars(tag.stringByReplacingMatches(in: page, range: full(page), withTemplate: "")), "tags \(label)")
+            let metas = meta.matches(in: page, range: full(page)).prefix(256).compactMap { Range($0.range(at: 1), in: page).map { String(page[$0]) } }
+            XCTAssertEqual(PublicLinkHTMLScanner.metaTags(in: page).map(scalars), metas.map(scalars), "meta \(label)")
+            let expected = title.firstMatch(in: page, range: full(page)).flatMap { Range($0.range(at: 1), in: page) }.map { scalars(String(page[$0])) }
+            XCTAssertEqual(PublicLinkHTMLScanner.titleMarkup(in: page).map(scalars), expected, "title \(label)")
+            // The original attribute pattern needs seconds for one long unassigned name.
+            guard attributePattern else { return }
+            let pairs = attributes.matches(in: page, range: full(page)).map { match -> [[UInt32]] in
+                let value = (2...4).compactMap { Range(match.range(at: $0), in: page) }.first
+                return [Range(match.range(at: 1), in: page).map { scalars(String(page[$0])) } ?? [], value.map { scalars(String(page[$0])) } ?? []]
+            }
+            XCTAssertEqual(PublicLinkHTMLScanner.attributes(in: page).map { [scalars($0.name), scalars($0.value)] }, pairs, "attributes \(label)")
+        }
+        let pieces = ["<", ">", "<!--", "-->", "--", "!", "<script", "</script", "<SCRIPT", "</Script", "<style", "</style", "</STYLE", "<meta", "<META", "<title", "</title", "</TITLE", "<\u{17F}cript", "</\u{17F}tyle", "<\u{FB06}yle", "<t\u{130}tle", "<\u{212A}",
+                      " ", "\n", "\t", "\u{B}", "\u{85}", "\u{A0}", "\u{2028}", "\u{3000}", "\u{1C}", "\u{200B}", "\u{200D}", "\u{301}", "=", "\"", "'", "`", "/", "-", "_", ":", ".", "1", "a", "B", "content", "property", "og:title", "é", "😀", "&amp;", "中"]
+        var state: UInt64 = 0x5EED
+        func next(_ bound: Int) -> Int { state = state &* 6364136223846793005 &+ 1442695040888963407; return Int((state >> 33) % UInt64(bound)) }
+        for _ in 0..<4000 { check((0..<next(28)).map { _ in pieces[next(pieces.count)] }.joined()) }
+        for filler in ["a", "😀", " "] {
+            for count in [8191, 8192, 8193] {
+                let body = String(repeating: filler, count: count)
+                for page in ["<meta \(body)><meta name=author content=x>", "<meta\(body)>", "<title>\(body)</title><title>short</title >"] { check(page, attributePattern: filler != "a") }
+            }
+        }
+        check(String(repeating: "<meta a=b>", count: 300))
+        check(#"<html><!--<meta property='og:title' content='comment'>--><script type="module"><meta property='og:title' content='script'></script ><style>a{}</style><title lang=en>A <b>bold</b> title</title><meta content='A &amp; B' property='og:title'><meta name=author content=Writer></html>"#)
+    }
 }
 
 #if !STANDALONE_TESTS

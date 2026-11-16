@@ -350,6 +350,169 @@ struct PublicLinkNetwork: Sendable {
     }
 }
 
+/// Single-pass equivalents of the patterns the metadata parser used to hand to
+/// NSRegularExpression, quoted above each function. They return what the
+/// pattern matched, but a page of unclosed tags costs one walk over the text
+/// instead of one walk per tag, which no cancellation could interrupt.
+enum PublicLinkHTMLScanner {
+    /// The first place at or after a position where `end` succeeds. Positions
+    /// only move forward, so the answer is remembered rather than searched again.
+    private struct Ahead {
+        private var scanned = 0, at = -1, end = 0, emptyFrom = Int.max
+        mutating func next(_ from: Int, _ count: Int, _ match: (Int) -> Int?) -> (at: Int, end: Int)? {
+            if from >= emptyFrom { return nil }
+            if from >= scanned, at >= from { return (at, end) }
+            scanned = from; at = -1
+            var index = from
+            while index < count {
+                if let end = match(index) { at = index; self.end = end; return (index, end) }
+                index += 1
+            }
+            emptyFrom = from; return nil
+        }
+    }
+    private static let commentOpen = literal("<!--"), commentClose = literal("-->")
+    private static let scriptOpen = literal("<script"), scriptClose = literal("</script")
+    private static let styleOpen = literal("<style"), styleClose = literal("</style")
+    private static let metaOpen = literal("<meta"), titleOpen = literal("<title"), titleClose = literal("</title")
+    private static func literal(_ value: String) -> [UInt32] { value.unicodeScalars.map(\.value) }
+    private static func string(_ scalars: ArraySlice<Unicode.Scalar>) -> String { String(String.UnicodeScalarView(scalars)) }
+    /// Where `literal` ends when it starts here, under the case folding `(?i)`
+    /// applies to these ASCII names: besides capitals, ſ reads as s, the
+    /// Kelvin sign as k, and the ligatures ﬅ and ﬆ as st.
+    private static func end(of literal: [UInt32], in text: [Unicode.Scalar], at start: Int) -> Int? {
+        var index = start, matched = 0
+        while matched < literal.count {
+            guard index < text.count else { return nil }
+            var value = text[index].value
+            if value == 0xFB05 || value == 0xFB06 {
+                guard matched + 1 < literal.count, literal[matched] == 115, literal[matched + 1] == 116 else { return nil }
+                matched += 2; index += 1; continue
+            }
+            if (65...90).contains(value) { value += 32 } else if value == 0x17F { value = 115 } else if value == 0x212A { value = 107 }
+            guard value == literal[matched] else { return nil }
+            matched += 1; index += 1
+        }
+        return index
+    }
+    /// `\s`
+    private static func isSpace(_ scalar: Unicode.Scalar) -> Bool {
+        if (9...13).contains(scalar.value) || scalar.value == 0x85 { return true }
+        return [.spaceSeparator, .lineSeparator, .paragraphSeparator].contains(scalar.properties.generalCategory)
+    }
+    /// `\w`, which decides where `\b` falls after a tag name.
+    private static func isWord(_ scalar: Unicode.Scalar) -> Bool {
+        if scalar.value < 128 { return (48...57).contains(scalar.value) || (65...90).contains(scalar.value) || (97...122).contains(scalar.value) || scalar.value == 95 }
+        // A combining or format character never starts a new word.
+        if scalar.properties.isAlphabetic || scalar.properties.isGraphemeExtend { return true }
+        return [.format, .spacingMark, .decimalNumber, .connectorPunctuation].contains(scalar.properties.generalCategory)
+    }
+    /// `<name\b`, when more text follows; the index after the name.
+    private static func opens(_ text: [Unicode.Scalar], _ at: Int, _ literal: [UInt32]) -> Int? {
+        guard let end = end(of: literal, in: text, at: at), end < text.count, !isWord(text[end]) else { return nil }
+        return end
+    }
+    /// `</name\s*>`; the index after `>`.
+    private static func closes(_ text: [Unicode.Scalar], _ at: Int, _ literal: [UInt32]) -> Int? {
+        guard var index = end(of: literal, in: text, at: at) else { return nil }
+        while index < text.count, isSpace(text[index]) { index += 1 }
+        return index < text.count && text[index] == ">" ? index + 1 : nil
+    }
+    /// Removes `(?is)<!--.*?-->|<script\b[^>]*>.*?</script\s*>|<style\b[^>]*>.*?</style\s*>`.
+    static func withoutHiddenMarkup(_ source: String) -> String {
+        let text = Array(source.unicodeScalars), count = text.count
+        var kept = [Unicode.Scalar](), index = 0
+        kept.reserveCapacity(count)
+        var comment = Ahead(), bracket = Ahead(), script = Ahead(), style = Ahead()
+        while index < count {
+            if text[index] == "<" {
+                if let body = end(of: commentOpen, in: text, at: index) {
+                    if let close = comment.next(body, count, { end(of: commentClose, in: text, at: $0) }) { index = close.end; continue }
+                } else if let name = opens(text, index, scriptOpen) {
+                    if let tag = bracket.next(name, count, { text[$0] == ">" ? $0 + 1 : nil }),
+                       let close = script.next(tag.end, count, { closes(text, $0, scriptClose) }) { index = close.end; continue }
+                } else if let name = opens(text, index, styleOpen) {
+                    if let tag = bracket.next(name, count, { text[$0] == ">" ? $0 + 1 : nil }),
+                       let close = style.next(tag.end, count, { closes(text, $0, styleClose) }) { index = close.end; continue }
+                }
+            }
+            kept.append(text[index]); index += 1
+        }
+        return string(kept[...])
+    }
+    /// The first 256 captures of `(?is)<meta\b([^>]{0,8192})>`.
+    static func metaTags(in html: String) -> [String] {
+        let text = Array(html.unicodeScalars), count = text.count
+        var tags = [String](), bracket = Ahead(), index = 0
+        while index < count, tags.count < 256 {
+            if text[index] == "<", let start = opens(text, index, metaOpen) {
+                guard let tag = bracket.next(start, count, { text[$0] == ">" ? $0 + 1 : nil }) else { break }
+                if tag.at - start <= 8192 { tags.append(string(text[start..<tag.at])); index = tag.end; continue }
+            }
+            index += 1
+        }
+        return tags
+    }
+    /// Names and values matched by
+    /// `([A-Za-z_:][A-Za-z0-9_:.-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))`.
+    static func attributes(in raw: String) -> [(name: String, value: String)] {
+        let text = Array(raw.unicodeScalars), count = text.count
+        func isNameStart(_ value: UInt32) -> Bool { (65...90).contains(value) || (97...122).contains(value) || value == 95 || value == 58 }
+        func isName(_ value: UInt32) -> Bool { isNameStart(value) || (48...57).contains(value) || value == 46 || value == 45 }
+        var result = [(name: String, value: String)](), double = Ahead(), single = Ahead(), index = 0
+        while index < count {
+            guard isNameStart(text[index].value) else { index += 1; continue }
+            var end = index + 1
+            while end < count, isName(text[end].value) { end += 1 }
+            var value = end
+            while value < count, isSpace(text[value]) { value += 1 }
+            // A name that is not assigned cannot match from any later letter of it either.
+            guard value < count, text[value] == "=" else { index = end; continue }
+            value += 1
+            while value < count, isSpace(text[value]) { value += 1 }
+            guard value < count else { index = end; continue }
+            if text[value] == "\"" {
+                guard let close = double.next(value + 1, count, { text[$0] == "\"" ? $0 + 1 : nil }) else { index = end; continue }
+                result.append((string(text[index..<end]), string(text[(value + 1)..<close.at]))); index = close.end
+            } else if text[value] == "'" {
+                guard let close = single.next(value + 1, count, { text[$0] == "'" ? $0 + 1 : nil }) else { index = end; continue }
+                result.append((string(text[index..<end]), string(text[(value + 1)..<close.at]))); index = close.end
+            } else {
+                var stop = value
+                while stop < count, !isSpace(text[stop]), !"\"'=<>`".unicodeScalars.contains(text[stop]) { stop += 1 }
+                guard stop > value else { index = end; continue }
+                result.append((string(text[index..<end]), string(text[value..<stop]))); index = stop
+            }
+        }
+        return result
+    }
+    /// The capture of the first `(?is)<title\b[^>]*>(.{0,8192}?)</title\s*>`.
+    static func titleMarkup(in html: String) -> String? {
+        let text = Array(html.unicodeScalars), count = text.count
+        var bracket = Ahead(), closing = Ahead(), index = 0
+        while index < count {
+            if text[index] == "<", let name = opens(text, index, titleOpen) {
+                // Without a later `>` or closing tag here, no later title has one.
+                guard let tag = bracket.next(name, count, { text[$0] == ">" ? $0 + 1 : nil }),
+                      let close = closing.next(tag.end, count, { closes(text, $0, titleClose) }) else { return nil }
+                if close.at - tag.end <= 8192 { return string(text[tag.end..<close.at]) }
+            }
+            index += 1
+        }
+        return nil
+    }
+    /// Removes `<[^>]*>`.
+    static func withoutTags(_ markup: String) -> String {
+        let text = Array(markup.unicodeScalars), count = text.count
+        var kept = [Unicode.Scalar](), bracket = Ahead(), index = 0
+        while index < count {
+            if text[index] == "<", let tag = bracket.next(index + 1, count, { text[$0] == ">" ? $0 + 1 : nil }) { index = tag.end; continue }
+            kept.append(text[index]); index += 1
+        }
+        return string(kept[...])
+    }
+}
+
 struct PublicLinkHTMLMetadata: Equatable, Sendable {
     let title: String?
     let author: String?
@@ -358,31 +521,18 @@ struct PublicLinkHTMLMetadata: Equatable, Sendable {
     init(data: Data, url: URL) throws {
         guard data.count <= 512 * 1024 else { throw PublicLinkError.tooLarge }
         let source = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? ""
-        let html = Self.replacing(#"(?is)<!--.*?-->|<script\b[^>]*>.*?</script\s*>|<style\b[^>]*>.*?</style\s*>"#, in: source, with: "")
-        let tags = try NSRegularExpression(pattern: #"(?is)<meta\b([^>]{0,8192})>"#)
-        let attributes = try NSRegularExpression(pattern: #"([A-Za-z_:][A-Za-z0-9_:.-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))"#)
+        let html = PublicLinkHTMLScanner.withoutHiddenMarkup(source)
         var metadata: [String: String] = [:]
-        for tag in tags.matches(in: html, range: NSRange(html.startIndex..., in: html)).prefix(256) {
-            guard let range = Range(tag.range(at: 1), in: html) else { continue }
-            let raw = String(html[range]); var values: [String: String] = [:]
-            for attribute in attributes.matches(in: raw, range: NSRange(raw.startIndex..., in: raw)) {
-                guard let key = Range(attribute.range(at: 1), in: raw),
-                      let value = (2...4).compactMap({ Range(attribute.range(at: $0), in: raw) }).first else { continue }
-                values[String(raw[key]).lowercased()] = Self.entities(String(raw[value]))
-            }
+        for raw in PublicLinkHTMLScanner.metaTags(in: html) {
+            var values: [String: String] = [:]
+            for attribute in PublicLinkHTMLScanner.attributes(in: raw) { values[attribute.name.lowercased()] = Self.entities(attribute.value) }
             if let key = values["property"] ?? values["name"], let value = values["content"], metadata[key.lowercased()] == nil { metadata[key.lowercased()] = String(value.prefix(2000)) }
         }
-        let titleTag = try NSRegularExpression(pattern: #"(?is)<title\b[^>]*>(.{0,8192}?)</title\s*>"#)
-        let titleMatch = titleTag.firstMatch(in: html, range: NSRange(html.startIndex..., in: html))
-            .flatMap { Range($0.range(at: 1), in: html) }.map { Self.entities(Self.replacing(#"<[^>]*>"#, in: String(html[$0]), with: "")) }
+        let titleMatch = PublicLinkHTMLScanner.titleMarkup(in: html).map { Self.entities(PublicLinkHTMLScanner.withoutTags($0)) }
         title = Self.clean(metadata["og:title"] ?? metadata["twitter:title"] ?? titleMatch, limit: 500)
         author = Self.clean(metadata["author"] ?? metadata["og:site_name"], limit: 200)
         let image = metadata["og:image:secure_url"] ?? metadata["og:image"] ?? metadata["twitter:image"]
         thumbnailURL = image.flatMap { URL(string: $0, relativeTo: url)?.absoluteURL }.flatMap { PublicLinkDestination($0)?.url }
-    }
-    private static func replacing(_ pattern: String, in value: String, with replacement: String) -> String {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return value }
-        return regex.stringByReplacingMatches(in: value, range: NSRange(value.startIndex..., in: value), withTemplate: replacement)
     }
     private static func clean(_ value: String?, limit: Int) -> String? {
         guard let value else { return nil }

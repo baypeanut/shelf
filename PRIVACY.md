@@ -12,6 +12,8 @@ Library Trash is emptied in two ways. Items that have been in Trash longer than 
 
 Permanent deletion is not secure erasure of exports, originals, the macOS Trash, APFS snapshots or backups, including the backup Shelf made when it first created the Library.
 
+When an update changes how the Library is stored, Shelf first saves a copy of the database in `Library/Snapshots/` inside its storage folder, readable only by your account, so the change can be undone by hand. A copy holds everything the Library held at that moment, including items you permanently delete afterwards. Shelf keeps at most the two newest copies and deletes each one a week after it was made. **Empty Trash…** deletes every copy immediately; automatic cleanup of old Trash does not, so an item it removed can remain in a copy for up to that week. If a copy cannot be made, storage is left as it is and Shelf keeps working with it.
+
 ## Capture choices
 
 Image, text and link clipboard capture are separate opt-ins and start disabled. Known confidential, transient, concealed and password-manager pasteboard markers are excluded. Shelf cannot identify every unmarked password or token. Capture starts at the current pasteboard change count; launching does not import existing clipboard content.

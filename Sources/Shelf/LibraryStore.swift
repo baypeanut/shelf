@@ -101,7 +101,11 @@ struct LibraryQuery: Equatable {
 }
 
 private enum LibrarySQL {
-    static func query(_ query: LibraryQuery, limit: Int, offset: Int, now: Date, projection: String = "i.payload", unlimited: Bool = false) -> (String, [SQLValue]) {
+    /// `indexComplete` is nil when the library has no search index; the query
+    /// then reads every item in scope, as it always did. Otherwise the terms
+    /// the index can narrow choose the candidate items, and the same conditions
+    /// as before decide among them.
+    static func query(_ query: LibraryQuery, limit: Int, offset: Int, now: Date, projection: String = "i.payload", unlimited: Bool = false, indexComplete: Bool? = nil) -> (String, [SQLValue]) {
         var whereParts = [query.scope == .trash ? "i.deleted IS NOT NULL" : "i.deleted IS NULL"], values = [SQLValue]()
         switch query.scope {
         case .saved: whereParts.append("i.retained IS NOT NULL")
@@ -132,14 +136,17 @@ private enum LibrarySQL {
             whereParts.append("EXISTS(SELECT 1 FROM item_source s WHERE s.item=i.id AND s.bundle=?)"); values.append(.text(query.sourceBundleID))
         }
         // Bound literal substring search handles Turkish, short strings, CJK
-        // and punctuation. The FTS index also supports future ranked searches.
+        // and punctuation.
         var textRank = "0", textRankValues = [SQLValue]()
+        var source = "items i", sourceValues = [SQLValue]()
         if !query.search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             var searchParts = [String](), searchValues = [SQLValue]()
+            var narrowing = [String]()
             if query.searchMode != .visual {
                 for term in query.search.libraryFolded.split(whereSeparator: \.isWhitespace) {
                     searchParts.append("(instr(i.search,?)>0 OR EXISTS(SELECT 1 FROM image_analysis a WHERE a.item=i.id AND a.path=i.path AND instr(a.content,?)>0))")
                     searchValues += [.text(String(term)), .text(String(term))]
+                    if LibrarySearchIndex.match(String(term)) != nil { narrowing.append(String(term)) }
                 }
             }
             let text = searchParts.isEmpty ? "0" : "(" + searchParts.joined(separator: " AND ") + ")"
@@ -147,6 +154,9 @@ private enum LibrarySQL {
             let visual = query.searchMode != .text && !query.visualIDs.isEmpty ? "i.id IN (" + query.visualIDs.map { _ in "?" }.joined(separator: ",") + ")" : "0"
             whereParts.append("(\(text) OR \(visual))"); values += searchValues
             if visual != "0" { values += query.visualIDs.map { .text($0.uuidString) } }
+            if let indexComplete, let candidates = LibrarySearchIndex.candidates(terms: narrowing, complete: indexComplete, kind: query.kind, extraIDs: visual == "0" ? [] : query.visualIDs) {
+                source = candidates.sql + " hit CROSS JOIN items i ON i.id=hit.item"; sourceValues = candidates.values
+            }
         }
         var order: String
         switch query.sort { case .newest, .relevance: order = "i.created DESC"; case .oldest: order = "i.created ASC"; case .title: order = "i.sort_title ASC"; case .titleDescending: order = "i.sort_title DESC"; case .copied: order = "COALESCE(i.copied,i.created) DESC" }
@@ -155,10 +165,16 @@ private enum LibrarySQL {
             // precede semantic suggestions; semantic images retain model rank.
             let ranks = query.visualIDs.enumerated().map { "WHEN '\($0.element.uuidString)' THEN \($0.offset)" }.joined(separator: " ")
             order = "CASE WHEN \(textRank) THEN -1 ELSE CASE i.id \(ranks) ELSE \(query.visualIDs.count) END END," + order
-            values += textRankValues
-        }
-        let sql = "SELECT \(projection) FROM items i WHERE \(whereParts.joined(separator: " AND ")) ORDER BY \(order),i.rowid DESC"
-        return unlimited ? (sql, values) : (sql + " LIMIT ? OFFSET ?", values + [.integer(Int64(max(1, min(limit, 10000)))), .integer(Int64(max(0, offset)))])
+        } else { textRankValues = [] }
+        let ordered = " ORDER BY \(order),i.rowid DESC"
+        let matching = " FROM \(source) WHERE \(whereParts.joined(separator: " AND "))" + ordered
+        values = sourceValues + values + textRankValues
+        if unlimited { return ("SELECT \(projection)" + matching, values) }
+        let page: [SQLValue] = [.integer(Int64(max(1, min(limit, 10000)))), .integer(Int64(max(0, offset)))]
+        // Sorting every match with its payload would copy megabytes to return
+        // one page. Choose the page's rows first, then read only those.
+        if indexComplete != nil { return ("SELECT \(projection) FROM items i WHERE i.rowid IN (SELECT i.rowid" + matching + " LIMIT ? OFFSET ?)" + ordered, values + page + textRankValues) }
+        return ("SELECT \(projection)" + matching + " LIMIT ? OFFSET ?", values + page)
     }
     static func decode(_ rows: [[String: SQLValue]]) throws -> [LibraryRecord] {
         try rows.map { row in guard let data = row["payload"]?.data else { throw HistoryFiles.Failure.unsafeFile }; return try JSONDecoder().decode(LibraryRecord.self, from: data) }
@@ -190,6 +206,16 @@ extension String {
     let snapshots: LibrarySnapshots
     private let db: LibraryDatabase
     private var textIdentityDataVersion: Int64?
+    /// Nil when this library has no search index: the snapshot that must come
+    /// first could not be made, or the trigram tokenizer is missing.
+    private var searchStatus: LibrarySearchIndex.Status?
+    /// The search table an earlier build wrote on every save. Nothing reads
+    /// it; it is cleared in the background and kept clean until it is gone.
+    private var legacySearchTable = false
+    /// Makes search read every item, as it does in a library without an
+    /// index, so tests can compare the two.
+    var searchIndexDisabled = false
+    var searchIndexComplete: Bool? { searchIndexDisabled ? nil : searchStatus?.isComplete }
     private let now: () -> Date
     private struct ShelfRemoval {
         let id: UUID
@@ -220,8 +246,10 @@ extension String {
     func retentionDays(for kind: LibraryKind) -> Int { HistoryRetention.days(kind, defaults: defaults) }
     var thumbnailsFolder: URL { root.appendingPathComponent("Thumbnails", isDirectory: true) }
 
+    /// `backgroundMaintenance` is false only in tests that step through the
+    /// search index's catch-up themselves.
     init(defaults: UserDefaults, inbox: URL, now: @escaping () -> Date = Date.init,
-         moveToTrash: @escaping (URL) throws -> URL = HistoryFiles.systemTrash) throws {
+         moveToTrash: @escaping (URL) throws -> URL = HistoryFiles.systemTrash, backgroundMaintenance: Bool = true) throws {
         self.defaults = defaults; self.now = now; files = HistoryFiles(inbox: inbox, moveToTrash: moveToTrash)
         root = inbox.appendingPathComponent("Library", isDirectory: true).standardizedFileURL
         databaseURL = root.appendingPathComponent("library.sqlite")
@@ -239,6 +267,7 @@ extension String {
         try db.execute("PRAGMA synchronous=FULL")
         // Content removed from Trash is overwritten rather than left in free pages.
         try db.execute("PRAGMA secure_delete=ON")
+        let populated = try !db.rows("SELECT 1 FROM sqlite_master WHERE type='table' AND name='items'").isEmpty && !db.rows("SELECT 1 FROM items LIMIT 1").isEmpty
         for sql in [
             "CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL)",
             "CREATE TABLE IF NOT EXISTS items(id TEXT PRIMARY KEY,kind TEXT NOT NULL,created REAL NOT NULL,updated REAL NOT NULL,copied REAL,retained REAL,favorite INTEGER NOT NULL,shelf INTEGER NOT NULL,deleted REAL,path TEXT,normalized TEXT,domain TEXT NOT NULL,sort_title TEXT NOT NULL,search TEXT NOT NULL,payload BLOB NOT NULL)",
@@ -269,7 +298,6 @@ extension String {
             "CREATE TABLE IF NOT EXISTS item_source(item TEXT PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,bundle TEXT NOT NULL COLLATE NOCASE,name TEXT NOT NULL)",
             "CREATE INDEX IF NOT EXISTS item_source_bundle ON item_source(bundle)",
             "CREATE TRIGGER IF NOT EXISTS item_source_payload_changed AFTER UPDATE OF payload ON items BEGIN DELETE FROM item_source WHERE item=NEW.id; END",
-            "CREATE VIRTUAL TABLE IF NOT EXISTS search_fts USING fts5(id UNINDEXED,content,tokenize='unicode61')",
             "CREATE TABLE IF NOT EXISTS image_analysis(item TEXT PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,path TEXT NOT NULL,fingerprint TEXT NOT NULL,version TEXT NOT NULL,content TEXT NOT NULL,ocr TEXT NOT NULL,vectors BLOB NOT NULL)",
             // Durable intent also covers a crash between creating a new PNG
             // and committing its record; only unpublished/retired assets go
@@ -279,11 +307,52 @@ extension String {
         if try !db.rows("PRAGMA table_info(text_identity)").contains(where: { $0["name"]?.string == "version" }) {
             try db.execute("ALTER TABLE text_identity ADD COLUMN version INTEGER NOT NULL DEFAULT 1")
         }
+        try installSearchIndex(populated: populated)
         try migrateLegacy()
         try backfillTextIdentity()
         try db.execute("PRAGMA user_version=1")
         drainMarkupGarbage()
+        if backgroundMaintenance { startSearchMaintenance() }
     }
+    deinit { searchStatus?.cancel() }
+    /// The first change to how an existing library is stored. A snapshot comes
+    /// first; if it cannot be made, or the index cannot be created, nothing is
+    /// changed, search keeps reading every item, and the next launch tries again.
+    private func installSearchIndex(populated: Bool) throws {
+        legacySearchTable = try LibrarySearchIndex.hasLegacyTable(db)
+        var installed = try LibrarySearchIndex.isInstalled(db)
+        if !installed {
+            do {
+                // Without the tokenizer there is nothing to prepare for.
+                try LibrarySearchIndex.probe(db)
+                if populated { try snapshots.make(of: db, at: now()) }
+                try db.transaction { try LibrarySearchIndex.install(in: db, complete: !populated) }
+                installed = true
+            } catch { log.error("The library search index was not created; the library is unchanged") }
+        }
+        guard installed else { return }
+        // Only a shortcut; without it the old table is still kept clean, slowly.
+        if legacySearchTable { try? LibrarySearchIndex.indexLegacyTable(db) }
+        let status = LibrarySearchIndex.Status()
+        if try LibrarySearchIndex.isComplete(db) { status.markComplete() }
+        searchStatus = status
+    }
+    /// Indexes what an earlier build stored and clears its unused search
+    /// table, in small steps on a connection of its own.
+    private func startSearchMaintenance() {
+        guard let status = searchStatus, legacySearchTable || !status.isComplete else { return }
+        let url = databaseURL
+        maintenanceQueue.async {
+            guard let database = try? LibraryDatabase(url: url, verify: false) else { return }
+            _ = try? LibrarySearchIndex.maintain(database, status: status)
+            // The cleared pages were overwritten in the log first; fold it back.
+            _ = try? database.rows("PRAGMA wal_checkpoint(TRUNCATE)")
+            // The old table leaves free pages behind; return them as a purge does.
+            if !status.isCancelled, Self.hasWorthwhileFreeSpace(database, fraction: 8) { _ = Self.vacuum(database, at: url) }
+        }
+    }
+    /// Waits for background maintenance that has been started. For tests.
+    func waitForMaintenance() { maintenanceQueue.sync {} }
     private func migrateLegacy() throws {
         guard try db.rows("SELECT value FROM metadata WHERE key='migration-v1'").isEmpty else { return }
         // Decode before writing any record or applying expiry. A damaged
@@ -376,8 +445,18 @@ extension String {
         } else {
             try db.execute("DELETE FROM item_source WHERE item=?", [.text(item.id.uuidString)])
         }
-        try db.execute("DELETE FROM search_fts WHERE id=?", [.text(item.id.uuidString)])
-        try db.execute("INSERT INTO search_fts(id,content) VALUES(?,?)", [.text(item.id.uuidString), .text(content)])
+        // The search index follows `items.search` through its triggers.
+        try forgetLegacySearch("id=?", [.text(item.id.uuidString)])
+    }
+    /// Until the old search table is gone it must not keep text that an edit
+    /// or a purge removed. The table can disappear between two statements.
+    private func forgetLegacySearch(_ condition: String, _ values: [SQLValue]) throws {
+        guard legacySearchTable else { return }
+        do { try LibrarySearchIndex.forgetLegacy(db, indexed: searchStatus != nil, where: condition, values) }
+        catch {
+            guard try !LibrarySearchIndex.hasLegacyTable(db) else { throw error }
+            legacySearchTable = false
+        }
     }
     func item(_ id: UUID) throws -> LibraryRecord? { try LibrarySQL.decode(db.rows("SELECT payload FROM items WHERE id=?", [.text(id.uuidString)])).first }
     /// Read cached OCR only for the current live image and unchanged pixels.
@@ -411,21 +490,21 @@ extension String {
         return try LibrarySQL.decode(db.rows("SELECT payload FROM items WHERE kind=? AND shelf=1 AND deleted IS NULL ORDER BY \(order)", [.text(kind.rawValue)]))
     }
     func query(_ query: LibraryQuery, limit: Int = 80, offset: Int = 0) throws -> [LibraryRecord] {
-        let (sql, values) = LibrarySQL.query(query, limit: limit, offset: offset, now: now()); return try LibrarySQL.decode(db.rows(sql, values))
+        let (sql, values) = LibrarySQL.query(query, limit: limit, offset: offset, now: now(), indexComplete: searchIndexComplete); return try LibrarySQL.decode(db.rows(sql, values))
     }
     func queryAsync(_ query: LibraryQuery, limit: Int = 80, offset: Int = 0, completion: @escaping (Result<[LibraryRecord], Error>) -> Void) {
-        let url = databaseURL, date = now()
+        let url = databaseURL, date = now(), indexComplete = searchIndexComplete
         readerQueue.async {
             let result = Result { () throws -> [LibraryRecord] in
                 let db = try LibraryDatabase(url: url, readOnly: true, verify: false)
-                let (sql, values) = LibrarySQL.query(query, limit: limit, offset: offset, now: date)
+                let (sql, values) = LibrarySQL.query(query, limit: limit, offset: offset, now: date, indexComplete: indexComplete)
                 return try LibrarySQL.decode(db.rows(sql, values))
             }
             DispatchQueue.main.async { completion(result) }
         }
     }
     func cardSummariesAsync(_ query: LibraryQuery, limit: Int = 80, offset: Int = 0, completion: @escaping (Result<[LibraryCardSummary], Error>) -> Void) {
-        let url = databaseURL, date = now()
+        let url = databaseURL, date = now(), indexComplete = searchIndexComplete
         readerQueue.async {
             let result = Result { () throws -> [LibraryCardSummary] in
                 let connection = try LibraryDatabase(url: url, readOnly: true, verify: false)
@@ -433,7 +512,7 @@ extension String {
                 // snapshot, without per-card database reads on the UI thread.
                 let tags = "FROM item_tags it JOIN tags t ON t.id=it.tag WHERE it.item=i.id ORDER BY t.folded,t.id"
                 let projection = "i.payload,(SELECT t.name \(tags) LIMIT 1) AS tag0,(SELECT t.name \(tags) LIMIT 1 OFFSET 1) AS tag1,(SELECT count(*) FROM item_tags it WHERE it.item=i.id) AS tag_count"
-                let (sql, values) = LibrarySQL.query(query, limit: min(limit, 80), offset: offset, now: date, projection: projection)
+                let (sql, values) = LibrarySQL.query(query, limit: min(limit, 80), offset: offset, now: date, projection: projection, indexComplete: indexComplete)
                 let rows = try connection.rows(sql, values), records = try LibrarySQL.decode(rows)
                 return zip(records, rows).map { record, row in
                     LibraryCardSummary(record: record, tagNames: [row["tag0"]?.string, row["tag1"]?.string].compactMap { $0 }, tagCount: Int(row["tag_count"]?.number ?? 0))
@@ -443,15 +522,15 @@ extension String {
         }
     }
     func queryIDs(_ query: LibraryQuery) throws -> [UUID] {
-        let (sql, values) = LibrarySQL.query(query, limit: 1, offset: 0, now: now(), projection: "i.id", unlimited: true)
+        let (sql, values) = LibrarySQL.query(query, limit: 1, offset: 0, now: now(), projection: "i.id", unlimited: true, indexComplete: searchIndexComplete)
         return try db.rows(sql, values).compactMap { $0["id"]?.string.flatMap(UUID.init(uuidString:)) }
     }
     func queryIDsAsync(_ query: LibraryQuery, completion: @escaping (Result<[UUID], Error>) -> Void) {
-        let url = databaseURL, date = now()
+        let url = databaseURL, date = now(), indexComplete = searchIndexComplete
         readerQueue.async {
             let result = Result { () throws -> [UUID] in
                 let connection = try LibraryDatabase(url: url, readOnly: true, verify: false)
-                let (sql, values) = LibrarySQL.query(query, limit: 1, offset: 0, now: date, projection: "i.id", unlimited: true)
+                let (sql, values) = LibrarySQL.query(query, limit: 1, offset: 0, now: date, projection: "i.id", unlimited: true, indexComplete: indexComplete)
                 return try connection.rows(sql, values).compactMap { $0["id"]?.string.flatMap(UUID.init(uuidString:)) }
             }
             DispatchQueue.main.async { completion(result) }
@@ -999,7 +1078,7 @@ extension String {
             }
             try db.execute("DELETE FROM item_tags WHERE item IN (\(expiredIDs))", bound)
             try db.execute("DELETE FROM item_collections WHERE item IN (\(expiredIDs))", bound)
-            try db.execute("DELETE FROM search_fts WHERE id IN (\(expiredIDs))", bound)
+            try forgetLegacySearch(expired, bound)
             try db.execute("DELETE FROM text_identity WHERE item IN (\(expiredIDs))", bound)
             try db.execute("DELETE FROM image_analysis WHERE item IN (\(expiredIDs))", bound)
             try db.execute("DELETE FROM items WHERE \(expired)", bound)
@@ -1035,10 +1114,10 @@ extension String {
         // Deleting from the search index only marks its words; merging the
         // index drops them. Until the log is folded back and truncated it
         // still holds the old pages.
-        try? db.execute("INSERT INTO search_fts(search_fts) VALUES('optimize')")
+        if searchStatus != nil { try? db.execute("INSERT INTO search_trigram(search_trigram) VALUES('optimize')") }
+        if legacySearchTable { try? db.execute("INSERT INTO search_fts(search_fts) VALUES('optimize')") }
         _ = try? db.rows("PRAGMA wal_checkpoint(TRUNCATE)")
-        if let free = try? db.rows("PRAGMA freelist_count").first?["freelist_count"]?.number,
-           let pages = try? db.rows("PRAGMA page_count").first?["page_count"]?.number, free >= 256, free * 4 > pages { compact() }
+        if Self.hasWorthwhileFreeSpace(db) { compact() }
         return ids
     }
     /// Empties Trash as the user saw it at `date`: an item trashed after the
@@ -1065,13 +1144,22 @@ extension String {
         let url = databaseURL
         maintenanceQueue.async {
             var compacted = false
-            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? Int.max
-            if size <= Self.maximumCompactedBytes, let database = try? LibraryDatabase(url: url, verify: false) {
-                compacted = (try? database.execute("VACUUM")) != nil
-                _ = try? database.rows("PRAGMA wal_checkpoint(TRUNCATE)")
-            }
+            if let database = try? LibraryDatabase(url: url, verify: false) { compacted = Self.vacuum(database, at: url) }
             if let completion { Task { @MainActor in completion(compacted) } }
         }
+    }
+    nonisolated private static func hasWorthwhileFreeSpace(_ database: LibraryDatabase, fraction: Int64 = 4) -> Bool {
+        guard let free = try? database.rows("PRAGMA freelist_count").first?["freelist_count"]?.number,
+              let pages = try? database.rows("PRAGMA page_count").first?["page_count"]?.number else { return false }
+        return free >= 256 && free * fraction > pages
+    }
+    nonisolated private static func vacuum(_ database: LibraryDatabase, at url: URL) -> Bool {
+        // Asked of the file system each time; a URL remembers an earlier answer.
+        let size = ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? NSNumber)?.intValue ?? Int.max
+        guard size <= maximumCompactedBytes else { return false }
+        let compacted = (try? database.execute("VACUUM")) != nil
+        _ = try? database.rows("PRAGMA wal_checkpoint(TRUNCATE)")
+        return compacted
     }
     nonisolated static let maximumCompactedBytes = 256 * 1024 * 1024
     func collections() throws -> [LibraryCollection] {

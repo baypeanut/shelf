@@ -39,12 +39,12 @@ import XCTest
         XCTAssertEqual(try library.item(recent.id)?.deletedAt, f.date)
         XCTAssertNil(try XCTUnwrap(library.item(restored.id)).deletedAt); XCTAssertEqual(try library.item(restored.id)?.text, "restored synthetic note")
         XCTAssertEqual(try library.item(live.id)?.text, "live synthetic note")
-        for (table, column) in [("items", "id"), ("item_tags", "item"), ("item_collections", "item"), ("search_fts", "id"), ("text_identity", "item")] {
+        for (table, column) in [("items", "id"), ("item_tags", "item"), ("item_collections", "item"), ("search_docs", "item"), ("text_identity", "item")] {
             XCTAssertEqual(try count(library, table, column, old.id), 0, table)
             XCTAssertEqual(try count(library, table, column, live.id), 1, table)
         }
-        XCTAssertEqual(try count(library, "search_fts", "id", link.id), 0)
-        XCTAssertEqual(try count(library, "text_identity", "item", recent.id), 1); XCTAssertEqual(try count(library, "search_fts", "id", recent.id), 1)
+        XCTAssertEqual(try count(library, "search_docs", "item", link.id), 0)
+        XCTAssertEqual(try count(library, "text_identity", "item", recent.id), 1); XCTAssertEqual(try count(library, "search_docs", "item", recent.id), 1)
         XCTAssertEqual(try library.tags().map(\.name), ["topic"]); XCTAssertEqual(try library.collections().map(\.name), ["Folder"])
         var query = LibraryQuery(scope: .trash); XCTAssertEqual(try library.queryIDs(query), [recent.id]); XCTAssertEqual(try library.trashCount(), 1)
         query.search = "expired"; XCTAssertTrue(try library.queryIDs(query).isEmpty)

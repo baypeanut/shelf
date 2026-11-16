@@ -429,7 +429,8 @@ import XCTest
         let membershipsBefore = try strings("SELECT item,collection FROM item_collections ORDER BY item,collection", ["item", "collection"])
         let tagsBefore = try strings("SELECT item,tag FROM item_tags ORDER BY item,tag", ["item", "tag"])
         let identitiesBefore = try strings("SELECT item,digest,CAST(captured AS TEXT) AS captured FROM text_identity ORDER BY item", ["item", "digest", "captured"])
-        let ftsBefore = try strings("SELECT id,content FROM search_fts ORDER BY id", ["id", "content"])
+        let search = "SELECT i.id,i.search,CAST(d.doc AS TEXT) AS doc FROM items i LEFT JOIN search_docs d ON d.item=i.id ORDER BY i.id"
+        let searchBefore = try strings(search, ["id", "search", "doc"])
         let revision = library.revision, searchRevision = library.searchRevision
         try db.execute("CREATE TRIGGER reject_text_recapture BEFORE UPDATE ON items WHEN NEW.id='\(newest.id.uuidString)' AND NEW.created>OLD.created BEGIN SELECT RAISE(ABORT,'synthetic recapture failure'); END")
         f.date.addTimeInterval(10)
@@ -439,7 +440,8 @@ import XCTest
         XCTAssertEqual(try strings("SELECT item,collection FROM item_collections ORDER BY item,collection", ["item", "collection"]), membershipsBefore)
         XCTAssertEqual(try strings("SELECT item,tag FROM item_tags ORDER BY item,tag", ["item", "tag"]), tagsBefore)
         XCTAssertEqual(try strings("SELECT item,digest,CAST(captured AS TEXT) AS captured FROM text_identity ORDER BY item", ["item", "digest", "captured"]), identitiesBefore)
-        XCTAssertEqual(try strings("SELECT id,content FROM search_fts ORDER BY id", ["id", "content"]), ftsBefore)
+        XCTAssertEqual(try strings(search, ["id", "search", "doc"]), searchBefore)
+        XCTAssertEqual(try library.queryIDs(LibraryQuery(search: "older-search-tag")), [old.id])
         XCTAssertEqual(try live(library).count, 2)
         try db.execute("DROP TRIGGER reject_text_recapture")
         XCTAssertEqual(try library.captureText("Transaction value")?.id, newest.id)

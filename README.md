@@ -112,4 +112,4 @@ To look at the interface with sample content and separate preferences, run `bash
 
 ## License
 
-Copyright © 2026 baypeanut. All rights reserved. See [LICENSE](LICENSE).
+Released under the [MIT License](LICENSE). Bundled third-party components keep their own licenses; see [Dependencies](DEPENDENCIES.md).

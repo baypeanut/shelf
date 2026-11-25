@@ -70,11 +70,7 @@ struct PublicLinkDestination: Equatable, Sendable {
         let labels = host.split(separator: ".", omittingEmptySubsequences: false)
         guard labels.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 63 && !$0.hasPrefix("-") && !$0.hasSuffix("-") }),
               labels.last?.contains(where: { $0.isLetter }) == true else { return nil }
-        let secretNames: Set<String> = ["token", "accesstoken", "refreshtoken", "idtoken", "auth", "authorization", "authentication", "authtoken", "password", "passwd", "pwd", "passcode", "passphrase", "otp", "totp", "secret", "clientsecret", "apisecret", "secretkey", "privatekey", "key", "apikey", "accesskey", "accesskeyid", "signature", "sig", "code", "session", "sessionid", "credential", "credentials", "jwt", "bearer", "state", "policy", "keypairid", "verifier"]
-        guard !(c.queryItems ?? []).contains(where: {
-            let name = $0.name.lowercased().replacingOccurrences(of: "-", with: "").replacingOccurrences(of: "_", with: "")
-            return secretNames.contains(name) || name.hasPrefix("xamz") || name.hasPrefix("xgoog") || name.hasPrefix("oauth")
-        }) else { return nil }
+        guard LinkSensitivity.mayRequest(c) else { return nil }
         c.scheme = "https"; c.host = host; c.port = nil; c.fragment = nil
         if c.percentEncodedPath.isEmpty { c.percentEncodedPath = "/" }
         let target = c.percentEncodedPath + (c.percentEncodedQuery.map { "?" + $0 } ?? "")

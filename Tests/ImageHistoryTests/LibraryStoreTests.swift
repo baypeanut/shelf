@@ -24,6 +24,25 @@ import XCTest
         XCTAssertEqual(try store(f).query(LibraryQuery()).map(\.id), values.map(\.id))
         XCTAssertTrue(FileManager.default.fileExists(atPath: library.root.appendingPathComponent("Backups").path))
     }
+    /// The migration backup holds Shelf's own preferences and nothing read from
+    /// other domains, and it leaves after a week or with Empty Trash.
+    func testMigrationBackupHoldsOnlyOwnPreferencesAndExpiresLikeSnapshots() throws {
+        for emptying in [false, true] {
+            let f = try SyntheticFixture(); defer { f.cleanup() }
+            let history = f.history(); history.add(try f.image(owned: false)); f.defaults.set("synthetic", forKey: "syntheticOwnPreference")
+            let library = try LibraryStore(defaults: f.defaults, inbox: f.inbox, now: { f.date }, moveToTrash: fixtureTrash(f.folder), preferencesDomain: f.suite)
+            let backups = library.root.appendingPathComponent("Backups")
+            let backup = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: backups, includingPropertiesForKeys: nil).first { $0.lastPathComponent.hasPrefix("Before-Library-") })
+            let saved = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: backup.appendingPathComponent("preferences.plist")), format: nil) as? [String: Any])
+            XCTAssertEqual(Set(saved.keys), Set(try XCTUnwrap(f.defaults.persistentDomain(forName: f.suite)).keys))
+            XCTAssertEqual(saved["syntheticOwnPreference"] as? String, "synthetic"); XCTAssertNotNil(saved["imageHistoryV1"])
+            if emptying { try library.emptyTrash() } else {
+                f.date += 6 * 86_400; try library.prune(); XCTAssertTrue(FileManager.default.fileExists(atPath: backup.path))
+                f.date += 2 * 86_400; try library.prune()
+            }
+            XCTAssertFalse(FileManager.default.fileExists(atPath: backup.path), emptying ? "Empty Trash" : "expiry")
+        }
+    }
     func testCorruptSourceBlocksMigrationAndDoesNotOverwriteArchive() throws {
         let f = try SyntheticFixture(); defer { f.cleanup() }
         let texts = f.texts(); texts.add("original"); let bad = Data("broken".utf8); try bad.write(to: texts.archive)
@@ -137,6 +156,69 @@ import XCTest
         XCTAssertFalse(LinkIdentity.mayFetchMetadata(try XCTUnwrap(URL(string: "https://example.com/?token=private"))))
         XCTAssertTrue(LinkIdentity.mayFetchMetadata(try XCTUnwrap(URL(string: "https://example.com/articles"))))
     }
+    /// A link that carries a password, a signature or a token is never stored,
+    /// and copying one is not saved as text either.
+    func testLinksCarryingCredentialsAreNeitherCapturedAsLinksNorAsText() throws {
+        let f = try SyntheticFixture(); defer { f.cleanup() }; let library = try store(f)
+        let credentialed = ["https://synthetic-user" + ":synthetic-pass@example.com/private", "https://synthetic-user@example.com/private",
+                            "https://bucket.example.com/report.pdf?X-Amz-Signature=0000&X-Amz-Credential=synthetic",
+                            "https://example.com/callback#access_token=synthetic&token_type=bearer", "https://example.com/login?magic_token=synthetic",
+                            "https://example.com/session/" + "eyJhbGciOiJIUzI1NiJ9" + ".e30." + "c2lnbmF0dXJl", "https://example.com/files?sig=synthetic"]
+        for value in credentialed {
+            let url = try XCTUnwrap(URL(string: value))
+            XCTAssertTrue(LinkSensitivity.carriesCredentials(url), value)
+            XCTAssertThrowsError(try library.captureLink(url), value)
+        }
+        for value in ["https://example.com/articles?page=2", "https://example.com/?state=CA", "https://example.com/account/reset-password", "https://example.com/?author=synthetic"] {
+            XCTAssertFalse(LinkSensitivity.carriesCredentials(try XCTUnwrap(URL(string: value))), value)
+        }
+        let source = SyntheticCopies()
+        var texts = [String](), links = [URL]()
+        let watcher = TextClipboardWatcher(source: source, onText: { texts.append($0) }, onLink: { links.append($0) }, capturesText: { true }, capturesLinks: { true })
+        defer { watcher.stop() }; watcher.start()
+        for value in credentialed + ["https://example.com/articles?page=2"] { source.copy(value); watcher.check() }
+        XCTAssertEqual(links.map(\.absoluteString), ["https://example.com/articles?page=2"]); XCTAssertTrue(texts.isEmpty, "\(texts.count)")
+        XCTAssertEqual(try library.query(LibraryQuery()).count, 0)
+    }
+    /// Keys carried in the path or after a semicolon are credentials; common
+    /// parameter names such as code, key, session and ticket are only when
+    /// their value reads as random or the name says what kind of key it is.
+    func testLinkCaptureRefusesPathAndMatrixKeysButKeepsOrdinaryCodesAndKeys() throws {
+        let f = try SyntheticFixture(); defer { f.cleanup() }; let library = try store(f)
+        let key = "Ab12Cd34" + "Ef56Gh78" + "Ij90Kl12", long = key + "Mn34Op56Qr78St90", hex = "9f8a7B6c5d4e" + "3f2a1b0c9d8e7f6a5b4c"
+        let secret = ["https://hooks.slack.com/services/T0SYNTH01/B0SYNTH02/" + key, "https://discord.com/api/webhooks/123456789012345678/" + long,
+                      "https://api.telegram.org/bot123456789:" + "AAHsynthSYNTH" + "synthSYNTHsynth12345" + "/sendMessage?chat_id=1&text=hi",
+                      "https://example.com/app;jsessionid=" + key, "https://example.com/a?x=1;token=abc", "https://example.com/login/" + hex,
+                      "https://example.com/?code=" + hex, "https://example.com/?key=" + key, "https://example.com/?session=" + long,
+                      "https://example.com/?ticket=ST-" + key, "https://example.com/?auth_code=1", "https://example.com/?api_key=1",
+                      "https://example.com/?session_token=1", "https://example.com/?access_key=1", "https://example.com/?sessionId=1",
+                      "https://example.com/?accessCode=1", "https://example.com/?PHPSESSID=1"]
+        for value in secret {
+            let url = try XCTUnwrap(URL(string: value))
+            XCTAssertTrue(LinkSensitivity.carriesCredentials(url), value)
+            XCTAssertNil(PublicLinkDestination(url), value)
+            XCTAssertThrowsError(try library.captureLink(url), value)
+        }
+        let ordinary = ["https://shop.example.org/cart?promo_code=SAVE10", "https://weather.example.org/?country_code=US&zip_code=12345",
+                        "https://support.example.org/view?ticket_id=123", "https://www.ticketsite.org/event?ticket_type=adult",
+                        "https://conference.example.org/schedule?session=keynote", "https://docs.example.org/api?key=value-names",
+                        "https://example.com/?code=AAAA", "https://example.com/resetpassword.php?id=42", "https://example.com/verify-email-address/42",
+                        "https://github.com/apple/swift/commit/0123456789abcdef0123456789abcdef01234567",
+                        "https://docs.example.org/document/d/" + long + "/edit", "https://en.wikipedia.org/wiki/File:IMG_20190101_123456789_HDR.jpg",
+                        "https://example.com/l/" + hex]
+        let source = SyntheticCopies()
+        var links = [URL]()
+        let watcher = TextClipboardWatcher(source: source, onText: { _ in }, onLink: { links.append($0) }, capturesText: { true }, capturesLinks: { true })
+        defer { watcher.stop() }; watcher.start()
+        for value in ordinary {
+            XCTAssertFalse(LinkSensitivity.carriesCredentials(try XCTUnwrap(URL(string: value))), value)
+            source.copy(value); watcher.check()
+        }
+        for value in secret { source.copy(value); watcher.check() }
+        XCTAssertEqual(links.map(\.absoluteString), ordinary)
+        for url in links { _ = try library.captureLink(url) }
+        XCTAssertEqual(try library.shelfItems(.link).count, ordinary.count)
+    }
     func testPagingAndBackgroundQueriesRespectScopeAndResultOrder() throws {
         let f = try SyntheticFixture(); defer { f.cleanup() }; let library = try store(f)
         for i in 0..<120 { let item = try XCTUnwrap(library.captureText("note \(i)")); try library.retain([item.id]) }
@@ -213,4 +295,13 @@ import XCTest
         try library.writePrivate(Data("synthetic".utf8), to: folder.appendingPathComponent("kept"))
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["kept"])
     }
+}
+
+/// A pasteboard that holds one synthetic string at a time.
+@MainActor private final class SyntheticCopies: ClipboardSource {
+    private var count = 41_000, value = Data()
+    var changeCount: Int { count }
+    var itemTypes: [[NSPasteboard.PasteboardType]] { [[.string]] }
+    func data(forType type: NSPasteboard.PasteboardType, at index: Int) -> Data? { type == .string ? value : nil }
+    func copy(_ text: String) { count += 1; value = Data(text.utf8) }
 }

@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 #if !STANDALONE_TESTS
 import XCTest
 @testable import Shelf
@@ -217,7 +218,7 @@ import XCTest
         var ids = [UUID]()
         for i in 0..<8 { ids.append(try store.captureLink(URL(string: "https://example.com/\(i)")!).id) }
         try store.update(ids[0]) { $0.title = "user title" }
-        let secret = try store.captureLink(URL(string: "https://example.com/?token=private")!), local = try store.captureLink(URL(string: "http://192.168.1.1/")!)
+        let secret = try store.captureLink(URL(string: "https://example.com/account/reset-password")!), local = try store.captureLink(URL(string: "http://192.168.1.1/")!)
         service.request(ids + [secret.id,local.id]); wait { service.pendingCount == 0 && calls == 8 }
         XCTAssertEqual(service.peakConcurrency, 2); XCTAssertEqual(try store.item(ids[0])?.title, "user title"); XCTAssertEqual(try store.item(secret.id)?.metadataState, "blocked")
         service.request(ids); RunLoop.current.run(until: Date().addingTimeInterval(0.05)); XCTAssertEqual(calls, 8)
@@ -247,6 +248,41 @@ import XCTest
         service.request([id], force: true); wait { calls == 2 && service.pendingCount == 0 }
         let saved = try XCTUnwrap(store.item(id)?.thumbnailPath)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: store.thumbnailsFolder.path), [URL(fileURLWithPath: saved).lastPathComponent])
+        service.stop()
+    }
+    private func encodedImage(_ type: String, width: Int, height: Int) throws -> Data {
+        let context = try XCTUnwrap(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue))
+        let data = NSMutableData(), destination = try XCTUnwrap(CGImageDestinationCreateWithData(data, type as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, try XCTUnwrap(context.makeImage()), nil); XCTAssertTrue(CGImageDestinationFinalize(destination))
+        return data as Data
+    }
+    /// A page's preview image is kept only as PNG, JPEG, GIF or WebP whose
+    /// header gives a size within the capture limit.
+    func testLinkPreviewKeepsOnlyCommonImageFormatsWithinThePixelLimit() throws {
+        let f = try SyntheticFixture(); defer { f.cleanup() }; let store = try library(f)
+        let png = try encodedImage("public.png", width: 4, height: 3), jpeg = try encodedImage("public.jpeg", width: 4, height: 3)
+        let tiff = try encodedImage("public.tiff", width: 4, height: 3), oversized = try encodedImage("public.png", width: 8_000, height: 5_001)
+        XCTAssertEqual(LinkMetadataService.previewImage(png, contentType: "image/png"), png)
+        XCTAssertEqual(LinkMetadataService.previewImage(jpeg, contentType: "image/jpeg; charset=binary"), jpeg)
+        XCTAssertEqual(LinkMetadataService.previewImage(png), png)
+        for (data, type) in [(png, "image/jpeg"), (png, "image/svg+xml"), (png, ""), (tiff, "image/tiff"), (tiff, "image/png"), (oversized, "image/png"), (Data("<svg/>".utf8), "image/png")] {
+            XCTAssertNil(LinkMetadataService.previewImage(data, contentType: type), type)
+        }
+        XCTAssertNil(LinkMetadataService.previewImage(tiff)); XCTAssertNil(LinkMetadataService.previewImage(oversized))
+        var calls = 0, next = tiff
+        let service = LinkMetadataService(store: store, enabled: { true }, fetch: { _ in calls += 1; return LinkMetadata(title: "Preview", thumbnail: next) })
+        let first = try store.captureLink(URL(string: "https://example.com/preview-tiff")!).id
+        service.request([first]); wait { calls == 1 && service.pendingCount == 0 }
+        next = oversized
+        let second = try store.captureLink(URL(string: "https://example.com/preview-oversized")!).id
+        service.request([second]); wait { calls == 2 && service.pendingCount == 0 }
+        next = png
+        let third = try store.captureLink(URL(string: "https://example.com/preview-png")!).id
+        service.request([third]); wait { calls == 3 && service.pendingCount == 0 }
+        XCTAssertNil(try store.item(first)?.thumbnailPath); XCTAssertNil(try store.item(second)?.thumbnailPath)
+        XCTAssertEqual(try store.item(first)?.metadataState, "ready"); XCTAssertNotNil(try store.item(third)?.thumbnailPath)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: store.thumbnailsFolder.path).count, 1)
         service.stop()
     }
     func testManualMetadataRefreshBypassesCacheAndKeepsUserTitle() throws {

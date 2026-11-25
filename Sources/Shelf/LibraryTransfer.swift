@@ -17,10 +17,7 @@ import AppKit
         for record in records {
             if record.kind == .image {
                 guard let url = record.fileURL else { throw HistoryFiles.Failure.unsafeFile }
-                let prepared = try ClipboardTransfer.imageItems([url])
-                totalImageBytes += prepared.reduce(0, { $0 + ($1.data(forType: .png)?.count ?? 0) })
-                guard totalImageBytes <= 128 * 1024 * 1024 else { throw ClipboardTransfer.Failure.tooLarge }
-                items += prepared
+                items += try ClipboardTransfer.imageItems([url], total: &totalImageBytes)
             } else {
                 let item = NSPasteboardItem()
                 item.setString(record.text ?? record.originalURL ?? "", forType: .string)

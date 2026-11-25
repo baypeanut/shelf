@@ -62,7 +62,11 @@ final class TextClipboardWatcher {
             let text = String(decoding: data, as: UTF8.self)
             guard text.unicodeScalars.contains(where: { !$0.properties.isWhitespace }) else { continue }
             guard source.changeCount == count else { return }
-            if capturesLinks(), let onLink, let url = LinkIdentity.standalone(text) { onLink(url) }
+            if capturesLinks(), let onLink, let url = LinkIdentity.standalone(text) {
+                // A sign-in link, a presigned download or a link with a password
+                // is kept neither as a link nor as text.
+                if !LinkSensitivity.carriesCredentials(url) { onLink(url) }
+            }
             else if capturesText() { onText(text) }
             return
         }

@@ -17,12 +17,29 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      # A pull request is scanned with the scanner and rules of the branch it
+      # targets, before any of its own code runs, so it cannot relax the
+      # check that judges it.
+      - name: Use the base branch's scanner and rules for a pull request
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [[ ! "$BASE_REVISION" =~ ^[0-9a-f]{40}$ ]]; then echo "No base revision" >&2; exit 1; fi
+          git cat-file -e "$BASE_REVISION^{commit}"
+          mkdir -p "$RUNNER_TEMP/base-scanner"
+          git show "$BASE_REVISION:scripts/check-secrets.py" > "$RUNNER_TEMP/base-scanner/check-secrets.py"
+          git show "$BASE_REVISION:.gitleaks.toml" > "$RUNNER_TEMP/base-scanner/gitleaks.toml"
+          echo "SCANNER=$RUNNER_TEMP/base-scanner/check-secrets.py" >> "$GITHUB_ENV"
+          echo "SCANNER_CONFIG=$RUNNER_TEMP/base-scanner/gitleaks.toml" >> "$GITHUB_ENV"
+      - name: Scan working tree and all public Git history
+        run: |
+          python3 -I "${SCANNER:-scripts/check-secrets.py}" --source "$GITHUB_WORKSPACE" \
+            --config "${SCANNER_CONFIG:-$GITHUB_WORKSPACE/.gitleaks.toml}" --report-dir "$RUNNER_TEMP/security-scan"
       - name: Test publication guard
         run: python3 scripts/test-audit-public.py
       - name: Audit public source paths and high-confidence secret formats
         run: python3 scripts/audit-public.py --report "$RUNNER_TEMP/source-audit.json"
-      - name: Scan working tree and all public Git history
-        run: python3 scripts/check-secrets.py --report-dir "$RUNNER_TEMP/security-scan"
       - name: Preserve redacted evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

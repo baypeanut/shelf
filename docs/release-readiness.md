@@ -10,7 +10,7 @@ Shelf is available as source for a native macOS application. The build targets m
 - Data directory: `~/Library/Application Support/Shelf/Screenshots/`.
 - Included resources: icon, localization, privacy manifest, privacy/security documents and dependency information.
 - Optional visual-search builds include pinned model assets and their component notices.
-- There is no in-app updater. Shelf does not check for, download or install updates, and no updater framework, update feed or credential helper is bundled. Settings → About shows the installed version and links to the releases page.
+- There is no in-app updater. Shelf does not check for, download or install updates, and no updater framework, update feed or credential helper is bundled. Settings → About shows the installed version and links to the build guide.
 
 The local builder uses ad-hoc signing with hardened runtime. Strict signature verification and an actual isolated AppKit launch are part of the build gate. Neither establishes notarization, Developer ID signing or Mac App Store approval.
 

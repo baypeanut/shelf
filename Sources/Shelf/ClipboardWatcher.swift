@@ -83,7 +83,7 @@ final class ClipboardWatcher {
         "Pasteboard generator type"
     ].reduce(into: []) { $0.insert(NSPasteboard.PasteboardType($1)) }
     static let maximumDataBytes = 32 * 1024 * 1024
-    static let maximumPixelCount = 40_000_000
+    nonisolated static let maximumPixelCount = 40_000_000
 
     convenience init(capture: (any ClipboardAdmission)? = nil, onImage: @escaping (URL) -> Void) {
         self.init(source: SystemClipboardSource(), folder: Inbox.folder, capture: capture, onImage: onImage)

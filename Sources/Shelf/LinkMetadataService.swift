@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 
 struct LinkMetadata: Equatable {
     var title: String?
@@ -76,7 +77,7 @@ struct LinkMetadata: Equatable {
             if case let .success(metadata) = result {
                 cache[key] = metadata; if cache.count > 128 { cache.removeValue(forKey: cache.keys.first!) }
                 while cache.values.reduce(0, { $0 + ($1.thumbnail?.count ?? 0) }) > 16 * 1024 * 1024 { cache.removeValue(forKey: cache.keys.first!) }
-                if let data = metadata.thumbnail, data.count <= 5 * 1024 * 1024 {
+                if let data = metadata.thumbnail.flatMap({ Self.previewImage($0) }) {
                     let folder = store.thumbnailsFolder
                     guard folder.resolvingSymlinksInPath().path == folder.standardizedFileURL.path else { throw HistoryFiles.Failure.unsafeFile }
                     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
@@ -105,6 +106,32 @@ struct LinkMetadata: Equatable {
             }
         } catch { wanted.removeAll { $0 == id }; store.notice = L("Link preview could not be saved; the link is kept") }
     }
+    nonisolated private static let previewTypes: [String: String] = [
+        "image/png": "public.png", "image/jpeg": "public.jpeg", "image/jpg": "public.jpeg",
+        "image/gif": "com.compuserve.gif", "image/webp": "org.webmproject.webp",
+    ]
+    /// A preview image is used only when its bytes are PNG, JPEG, GIF or WebP,
+    /// agree with the type the server named, and the header gives a pixel size
+    /// within the capture limit. Nothing larger or of another format is decoded.
+    nonisolated static func previewImage(_ data: Data, contentType: String? = nil) -> Data? {
+        guard !data.isEmpty, data.count <= 5 * 1024 * 1024 else { return nil }
+        var hint: String?
+        if let contentType {
+            let type = contentType.split(separator: ";").first.map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
+            guard let expected = previewTypes[type] else { return nil }
+            hint = expected
+        }
+        var options: [CFString: Any] = [kCGImageSourceShouldCache: false]
+        if let hint { options[kCGImageSourceTypeIdentifierHint] = hint }
+        guard let source = CGImageSourceCreateWithData(data as CFData, options as CFDictionary),
+              let type = CGImageSourceGetType(source) as String?, Set(previewTypes.values).contains(type), hint == nil || hint == type,
+              CGImageSourceGetCount(source) > 0,
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, options as CFDictionary) as? [CFString: Any],
+              let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+              let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
+              width > 0, height > 0, width <= ClipboardWatcher.maximumPixelCount / height else { return nil }
+        return data
+    }
     static func youtubeMetadata(_ data: Data) throws -> (LinkMetadata, URL?) {
         struct Response: Decodable { let title: String?; let author_name: String?; let thumbnail_url: String? }
         guard data.count <= 256 * 1024 else { throw HistoryFiles.Failure.unsafeFile }
@@ -123,9 +150,9 @@ struct LinkMetadata: Equatable {
             let response = try await network.fetch(endpoint.url!, limit: 256 * 1024,
                 allowed: { $0.host == "www.youtube.com" })
             var (metadata, thumbnail) = try youtubeMetadata(response.body)
-            if let thumbnail {
-                metadata.thumbnail = try? await network.fetch(thumbnail, limit: 5 * 1024 * 1024,
-                    allowed: { $0.host == "i.ytimg.com" || $0.host?.hasSuffix(".ytimg.com") == true }).body
+            if let thumbnail, let image = try? await network.fetch(thumbnail, limit: 5 * 1024 * 1024,
+                allowed: { $0.host == "i.ytimg.com" || $0.host?.hasSuffix(".ytimg.com") == true }) {
+                metadata.thumbnail = previewImage(image.body, contentType: image.headers["content-type"] ?? "")
             }
             return metadata
         }
@@ -136,8 +163,8 @@ struct LinkMetadata: Equatable {
             try PublicLinkHTMLMetadata(data: response.body, url: response.url)
         }.value
         var result = LinkMetadata(title: parsed.title, author: parsed.author)
-        if let thumbnail = parsed.thumbnailURL {
-            result.thumbnail = try? await network.fetch(thumbnail, limit: 5 * 1024 * 1024).body
+        if let thumbnail = parsed.thumbnailURL, let image = try? await network.fetch(thumbnail, limit: 5 * 1024 * 1024) {
+            result.thumbnail = previewImage(image.body, contentType: image.headers["content-type"] ?? "")
         }
         return result
     }

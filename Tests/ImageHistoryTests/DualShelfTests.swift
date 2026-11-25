@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 #if !STANDALONE_TESTS
 import XCTest
 @testable import Shelf
@@ -179,6 +180,83 @@ final class DualShelfTests: HistoryTestCase {
             XCTAssertTrue(rejected); XCTAssertEqual(pasteboard.changeCount, change)
             XCTAssertEqual(pasteboard.string(forType: .string), "synthetic sentinel"); XCTAssertEqual(try Data(contentsOf: url), bytes)
             XCTAssertFalse(ClipboardTransfer.write([], to: pasteboard)); XCTAssertEqual(pasteboard.changeCount, change)
+        }
+    }
+    /// A synthetic image of any size and format, uniform so it stays small on disk.
+    private func encoded(_ url: URL, type: String, width: Int, height: Int, orientation: Int? = nil) throws {
+        // HEIC is written only from colour.
+        let colour = type == "public.heic"
+        let context = try XCTUnwrap(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+            space: colour ? CGColorSpaceCreateDeviceRGB() : CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: colour ? CGImageAlphaInfo.noneSkipLast.rawValue : CGImageAlphaInfo.none.rawValue))
+        context.setFillColor(gray: 0.5, alpha: 1); context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        let destination = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, type as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, try XCTUnwrap(context.makeImage()), orientation.map { [kCGImagePropertyOrientation: $0] as CFDictionary })
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+    }
+    private func pixelSize(_ data: Data) -> [Int] {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else { return [] }
+        return [kCGImagePropertyPixelWidth, kCGImagePropertyPixelHeight].compactMap { (properties[$0] as? NSNumber)?.intValue }
+    }
+    /// The pasteboard as a receiver would read it, on a named board.
+    @MainActor private func pasted(_ urls: [URL]) throws -> (board: NSPasteboard, items: [NSPasteboardItem]) {
+        let board = NSPasteboard.withUniqueName()
+        XCTAssertTrue(ClipboardTransfer.write(try ClipboardTransfer.imageItems(urls), to: board))
+        return (board, board.pasteboardItems ?? [])
+    }
+    @MainActor func testCopyReadsTheFormatFromTheBytesAndOffersOriginalBytesWithPNGOnRequest() throws {
+        try fixture { f in
+            let folder = f.folder.appendingPathComponent("Originals"); try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            // A PNG over the capture pixel limit, named as a JPEG, keeps its
+            // exact bytes: nothing has to be decoded to copy it.
+            let large = folder.appendingPathComponent("large.jpg")
+            try encoded(large, type: "public.png", width: 8_000, height: 5_001)
+            var copy = try pasted([large]); defer { copy.board.releaseGlobally() }
+            XCTAssertEqual(copy.items.first?.data(forType: .png), try Data(contentsOf: large))
+            XCTAssertNil(copy.items.first?.data(forType: NSPasteboard.PasteboardType("public.jpeg")))
+            // A JPEG named as a PNG is offered as JPEG and converted for a PNG reader.
+            let disguised = folder.appendingPathComponent("disguised.png")
+            try encoded(disguised, type: "public.jpeg", width: 6, height: 4)
+            copy.board.releaseGlobally(); copy = try pasted([disguised])
+            XCTAssertEqual(copy.items.first?.data(forType: NSPasteboard.PasteboardType("public.jpeg")), try Data(contentsOf: disguised))
+            let converted = try XCTUnwrap(copy.items.first?.data(forType: .png))
+            XCTAssertEqual(Array(converted.prefix(4)), [0x89, 0x50, 0x4E, 0x47]); XCTAssertEqual(pixelSize(converted), [6, 4])
+            XCTAssertEqual((copy.board.readObjects(forClasses: [NSImage.self], options: nil) as? [NSImage])?.count, 1)
+            // EXIF orientation is applied, as the copy appeared before.
+            let rotated = folder.appendingPathComponent("rotated.jpg")
+            try encoded(rotated, type: "public.jpeg", width: 6, height: 4, orientation: 6)
+            copy.board.releaseGlobally(); copy = try pasted([rotated])
+            XCTAssertEqual(pixelSize(try XCTUnwrap(copy.items.first?.data(forType: .png))), [4, 6])
+            XCTAssertEqual(pixelSize(try XCTUnwrap(ClipboardTransfer.pngData(rotated))), [4, 6])
+        }
+    }
+    @MainActor func testLargeNonPNGCopiesItsOwnBytesAndScalesPNGToThePixelLimit() throws {
+        try fixture { f in
+            let folder = f.folder.appendingPathComponent("Originals"); try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            // 48 megapixels, more than the capture limit, with a rotation.
+            let photo = folder.appendingPathComponent("photo.heic")
+            try encoded(photo, type: "public.heic", width: 8_064, height: 6_048, orientation: 6)
+            let copy = try pasted([photo]); defer { copy.board.releaseGlobally() }
+            XCTAssertEqual(copy.items.first?.data(forType: NSPasteboard.PasteboardType("public.heic")), try Data(contentsOf: photo))
+            let size = pixelSize(try XCTUnwrap(copy.items.first?.data(forType: .png)))
+            XCTAssertEqual(size.count, 2); XCTAssertLessThanOrEqual(size[0] * size[1], ClipboardWatcher.maximumPixelCount)
+            XCTAssertLessThan(size[0], size[1], "orientation applied"); XCTAssertEqual(Double(size[1]) / Double(size[0]), 8_064.0 / 6_048.0, accuracy: 0.01)
+            XCTAssertGreaterThan(size[0] * size[1], ClipboardWatcher.maximumPixelCount * 9 / 10)
+        }
+    }
+    @MainActor func testCopyNeverDecodesAnImageFarOverThePixelLimit() throws {
+        try fixture { f in
+            let folder = f.folder.appendingPathComponent("Originals"); try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            // 168 megapixels, a small file because it is uniform.
+            let bomb = folder.appendingPathComponent("bomb.jpg")
+            try encoded(bomb, type: "public.jpeg", width: 14_000, height: 12_000)
+            let bytes = try Data(contentsOf: bomb)
+            XCTAssertLessThan(bytes.count, ClipboardWatcher.maximumDataBytes)
+            let copy = try pasted([bomb]); defer { copy.board.releaseGlobally() }
+            XCTAssertEqual(copy.items.first?.data(forType: NSPasteboard.PasteboardType("public.jpeg")), bytes)
+            XCTAssertFalse(copy.items.first?.types.contains(.png) ?? true)
+            XCTAssertNil(ClipboardTransfer.pngData(bomb))
         }
     }
     @MainActor func testTextPasteboardConcatenatesAllEntriesAndDragOffersAllFiles() throws {

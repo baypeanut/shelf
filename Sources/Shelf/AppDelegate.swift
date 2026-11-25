@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let capture: CaptureControl
 
     override init() {
-        do { line = Line(library: try LibraryStore(defaults: .standard, inbox: Inbox.folder), pruneOnLoad: false); startupError = nil }
+        do { line = Line(library: try LibraryStore(defaults: .standard, inbox: Inbox.folder, preferencesDomain: Bundle.main.bundleIdentifier), pruneOnLoad: false); startupError = nil }
         catch {
             startupError = L("Library could not be opened. Existing history is kept; capture is paused.")
             line = Line(defaults: UserDefaults(suiteName: "com.baypeanut.Shelf.recovery")!, inbox: Inbox.folder.appendingPathComponent("Recovery"), breeze: false, pruneOnLoad: false)
@@ -1155,8 +1155,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     static var updatesURL: URL {
-        // Shelf has no in-app updater. This opens the public releases page only.
-        URL(string: "https://github.com/baypeanut/shelf/releases")!
+        // Shelf has no in-app updater and no signed, notarized release yet, so
+        // this opens the instructions for building it from source.
+        URL(string: "https://github.com/baypeanut/shelf/blob/main/docs/build-guide.md")!
     }
 
     private func focusLine(preservePasteTarget: Bool = false) {

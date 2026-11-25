@@ -216,6 +216,8 @@ extension String {
     let root: URL
     let databaseURL: URL
     let defaults: UserDefaults
+    /// The preference domain the migration backup copies; nil copies none.
+    let preferencesDomain: String?
     let files: HistoryFiles
     let snapshots: LibrarySnapshots
     private let db: LibraryDatabase
@@ -282,8 +284,9 @@ extension String {
     /// lowered or raised only in tests of the integrity check.
     init(defaults: UserDefaults, inbox: URL, now: @escaping () -> Date = Date.init,
          moveToTrash: @escaping (URL) throws -> URL = HistoryFiles.systemTrash, backgroundMaintenance: Bool = true,
-         deferredIntegrityCheckBytes: Int = LibraryStore.deferredIntegrityCheckBytes) throws {
+         deferredIntegrityCheckBytes: Int = LibraryStore.deferredIntegrityCheckBytes, preferencesDomain: String? = nil) throws {
         self.defaults = defaults; self.now = now; files = HistoryFiles(inbox: inbox, moveToTrash: moveToTrash)
+        self.preferencesDomain = preferencesDomain
         root = inbox.appendingPathComponent("Library", isDirectory: true).standardizedFileURL
         databaseURL = root.appendingPathComponent("library.sqlite")
         snapshots = LibrarySnapshots(root: root)
@@ -491,7 +494,9 @@ extension String {
         }
         let backup = root.appendingPathComponent("Backups/Before-Library-\(UUID())", isDirectory: true)
         try FileManager.default.createDirectory(at: backup, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        try writePrivate(try PropertyListSerialization.data(fromPropertyList: defaults.dictionaryRepresentation(), format: .binary, options: 0), to: backup.appendingPathComponent("preferences.plist"))
+        // Shelf's own preferences only, never the system-wide ones every app reads.
+        let preferences = preferencesDomain.flatMap { defaults.persistentDomain(forName: $0) } ?? [:]
+        try writePrivate(try PropertyListSerialization.data(fromPropertyList: preferences, format: .binary, options: 0), to: backup.appendingPathComponent("preferences.plist"))
         if FileManager.default.fileExists(atPath: textFile.path) { try FileManager.default.copyItem(at: textFile, to: backup.appendingPathComponent("text-history.json")) }
         let owned = files.files(in: files.inbox, matching: files.isClipboardCopy) + files.files(in: files.favoritesFolder, matching: files.isFavoriteCopy)
         for url in owned { try FileManager.default.copyItem(at: url, to: backup.appendingPathComponent(url.lastPathComponent)) }
@@ -813,7 +818,7 @@ extension String {
         return captured
     }
     @discardableResult func captureLink(_ url: URL, source: SourceApp? = nil) throws -> LibraryRecord {
-        guard let normalized = LinkIdentity.normalized(url) else { throw HistoryFiles.Failure.unsafeFile }
+        guard !LinkSensitivity.carriesCredentials(url), let normalized = LinkIdentity.normalized(url) else { throw HistoryFiles.Failure.unsafeFile }
         if var item = try LibrarySQL.decode(db.rows("SELECT payload FROM items INDEXED BY live_link_url WHERE kind='link' AND normalized=? AND deleted IS NULL ORDER BY created DESC,rowid DESC LIMIT 1", [.text(normalized)])).first {
             item.onShelf = true; item.updatedAt = now(); item.lastCopiedAt = now(); item.lastCapturedAt = now(); item.captureRevision = UUID()
             if let source { item.source = source }
@@ -1221,6 +1226,19 @@ extension String {
         }
         // A snapshot still holds what was purged above, but only for its week.
         snapshots.expire(now: now())
+        expireBackups()
+    }
+    /// The copy made before the first migration holds everything the library
+    /// held then, including items deleted for good since. It is kept as long
+    /// as a snapshot, and Empty Trash removes it with them.
+    private func expireBackups(all: Bool = false) {
+        let folder = root.appendingPathComponent("Backups", isDirectory: true)
+        guard folder.resolvingSymlinksInPath().path == folder.standardizedFileURL.path else { return }
+        let entries = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.creationDateKey])) ?? []
+        for url in entries where url.lastPathComponent.hasPrefix("Before-Library-") {
+            let created = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? .distantPast
+            if all || now().timeIntervalSince(created) > LibrarySnapshots.lifetime { try? FileManager.default.removeItem(at: url) }
+        }
     }
     func trashCount(olderThan cutoff: Date = .distantFuture) throws -> Int {
         Int(try db.rows("SELECT count(*) AS n FROM items WHERE deleted IS NOT NULL AND deleted<=?", [.real(cutoff.timeIntervalSince1970)]).first?["n"]?.number ?? 0)
@@ -1241,7 +1259,7 @@ extension String {
         var rows = [[String: SQLValue]]()
         try db.transaction {
             // Paths only: a trashed megabyte of text is never decoded to delete it.
-            rows = try db.rows("SELECT id,kind,path,\(extract("markupBasePath")),\(extract("recordingOriginalPath")),\(extract("thumbnailPath")) FROM items WHERE \(expired)", bound)
+            rows = try db.rows("SELECT id,kind,path,\(extract("markupBasePath")),\(extract("recordingOriginalPath")),\(extract("originalPath")),\(extract("thumbnailPath")) FROM items WHERE \(expired)", bound)
             guard !rows.isEmpty else { return }
             for row in rows where row["kind"]?.string == LibraryKind.image.rawValue {
                 // The durable queue retries a managed copy that cannot move now.
@@ -1261,15 +1279,17 @@ extension String {
         invalidateShelfUndo(ids); invalidateTrashUndo(ids)
         // Committed. Nothing below can fail the purge or restore a row.
         drainMarkupGarbage()
-        let live = (try? db.rows("SELECT path,\(extract("markupBasePath")),\(extract("recordingOriginalPath")) FROM items WHERE kind='image'")) ?? []
-        let referenced = Set(live.flatMap { row in fileFields.compactMap { row[$0]?.string } })
+        let live = (try? db.rows("SELECT path,\(extract("markupBasePath")),\(extract("recordingOriginalPath")),\(extract("originalPath")) FROM items WHERE kind='image'")) ?? []
+        let referenced = Set(live.flatMap { row in (fileFields + ["originalPath"]).compactMap { row[$0]?.string } })
         for row in rows {
             guard let id = row["id"]?.string else { continue }
             switch row["kind"]?.string.flatMap(LibraryKind.init(rawValue:)) {
             case .image:
-                for path in Set(fileFields.compactMap { row[$0]?.string }) where !referenced.contains(path) {
-                    let url = URL(fileURLWithPath: path)
-                    if files.isClipboardCopy(url) { _ = try? files.trashAppCopy(url) }
+                // A screenshot macOS saved into Shelf's folder in Inbox mode is
+                // Shelf's to remove, like its clipboard copies. Files elsewhere
+                // stay where they are.
+                for path in Set((fileFields + ["originalPath"]).compactMap { row[$0]?.string }) where !referenced.contains(path) {
+                    _ = try? files.trashInboxCapture(URL(fileURLWithPath: path))
                 }
             case .text: trashMaterializedCopy("Texts/Text \(id).txt")
             case .link:
@@ -1299,7 +1319,7 @@ extension String {
         let ids = try purgeTrash(olderThan: date)
         // A snapshot would keep what was just deleted; an explicit Empty Trash
         // does not wait for it to expire.
-        snapshots.removeAll()
+        snapshots.removeAll(); expireBackups(all: true)
         if !ids.isEmpty { compact() }
         return ids
     }

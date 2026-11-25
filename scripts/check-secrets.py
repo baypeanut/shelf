@@ -23,7 +23,15 @@ ARCHIVES = {
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--report-dir', type=Path, default=ROOT / 'local/security-scan')
+    # A pull request is checked from the target branch's copy of this script
+    # and rules, pointed at the pull request's checkout.
+    parser.add_argument('--source', type=Path, default=ROOT, help='checkout to scan')
+    parser.add_argument('--config', type=Path, default=None, help='rules file (default: .gitleaks.toml in the checkout)')
     args = parser.parse_args()
+    source = args.source.resolve()
+    config = (args.config or source / '.gitleaks.toml').resolve()
+    if not config.is_file():
+        raise SystemExit('Secret-scanner rules were not found')
     reports = args.report_dir.resolve()
     reports.mkdir(parents=True, exist_ok=True)
     suffix, checksum = ARCHIVES[(platform.system(), platform.machine())]
@@ -47,25 +55,50 @@ def main():
         os.chmod(executable, 0o700)
         base = [str(executable), '--no-banner', '--redact=100', '--report-format', 'json']
         probe = Path(temporary) / 'probe.json'
-        # A fresh, throwaway in-memory key proves the detector actually runs.
-        # It never authorizes anything, reaches disk, or enters a public report.
+        # A fresh, throwaway key proves the detector actually runs. It never
+        # authorizes anything or enters a public report; it reaches disk only
+        # in the temporary history control below, which is deleted afterwards.
         dummy = subprocess.check_output(['openssl', 'genrsa', '2048'], text=True, stderr=subprocess.DEVNULL)
         control = subprocess.run(base + ['--report-path', str(probe), 'stdin'], input=dummy, text=True,
-                                 capture_output=True, cwd=ROOT)
+                                 capture_output=True, cwd=source)
         if control.returncode != 1 or not probe.exists() or not json.loads(probe.read_text()):
             raise SystemExit('Secret scanner failed its positive detection control')
+
+        def scan(operation, report, cwd):
+            # Only the rules file decides; an ignore file in the checkout is not
+            # read, and inline allow comments are not honoured.
+            return subprocess.run(base + ['--config', str(config), '--gitleaks-ignore-path', temporary, '--ignore-gitleaks-allow',
+                                          '--report-path', str(report)] + operation, capture_output=True, text=True, cwd=cwd)
+        # Diffs are always read as text, so a checkout's .gitattributes cannot
+        # hide a file's history as binary or run its own diff program.
+        history = ['git', '.', '--log-opts=--all --text --no-textconv --no-ext-diff']
+        # The same key, committed with an allow comment under a no-diff rule and
+        # then removed, must still be found in history.
+        repository = Path(temporary) / 'history-control'
+        repository.mkdir()
+        git = ['git', '-c', 'user.name=control', '-c', 'user.email=control@example.invalid', '-c', 'commit.gpgsign=false',
+               '-c', 'core.hooksPath=/dev/null', '-C', str(repository)]
+        subprocess.run(git + ['init', '-q'], check=True)
+        (repository / '.gitattributes').write_text('*.txt -diff\n')
+        (repository / 'key.txt').write_text(dummy.rstrip('\n') + ' # gitleaks:allow\n')
+        subprocess.run(git + ['add', '.'], check=True)
+        subprocess.run(git + ['commit', '-qm', 'add'], check=True)
+        subprocess.run(git + ['rm', '-q', 'key.txt'], check=True)
+        subprocess.run(git + ['commit', '-qm', 'remove'], check=True)
+        probe = Path(temporary) / 'history-probe.json'
+        control = scan(history, probe, repository)
+        if control.returncode != 1 or not probe.exists() or not json.loads(probe.read_text()):
+            raise SystemExit('Secret scanner failed its history detection control')
         operations = [('working-tree', ['dir', '.'])]
-        if subprocess.run(['git', 'rev-parse', '--verify', 'HEAD'], cwd=ROOT, capture_output=True).returncode == 0:
-            operations.append(('all-public-history', ['git', '.', '--log-opts=--all']))
+        if subprocess.run(['git', 'rev-parse', '--verify', 'HEAD'], cwd=source, capture_output=True).returncode == 0:
+            operations.append(('all-public-history', history))
         for name, operation in operations:
             report = reports / (name + '.json')
-            result = subprocess.run(base + ['--config', '.gitleaks.toml', '--report-path', str(report)] + operation,
-                                    capture_output=True, text=True, cwd=ROOT)
+            result = scan(operation, report, source)
             (reports / (name + '.log')).write_text(result.stdout + result.stderr)
             if result.returncode != 0:
                 raise SystemExit(f'Secret scan rejected {name}; inspect the redacted report')
-            print(f'Gitleaks {VERSION}: {name} passed; positive detection control passed')
-
+            print(f'Gitleaks {VERSION}: {name} passed; positive and history detection controls passed')
 
 if __name__ == '__main__':
     main()

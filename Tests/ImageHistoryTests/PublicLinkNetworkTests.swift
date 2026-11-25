@@ -26,7 +26,47 @@ import XCTest
         XCTAssertEqual(destination.hostname, "example.com")
         XCTAssertEqual(destination.url.absoluteString, "https://example.com/articles?q=hello%20world")
         XCTAssertEqual(destination.requestTarget, "/articles?q=hello%20world")
-        for value in ["https://example.com/?password_reset=1", "https://example.com/?keyword=otp", "https://example.com/?topic=pwd", "https://example.com/?passage=2"] {
+        for value in ["https://example.com/?keyword=otp", "https://example.com/?topic=pwd", "https://example.com/?passage=2"] {
+            XCTAssertNotNil(PublicLinkDestination(try XCTUnwrap(URL(string: value))), value)
+        }
+    }
+
+    /// Opening these signs in, confirms, resets or unsubscribes, so a preview
+    /// must never request them. Ordinary pages with similar words still load.
+    func testDestinationRefusesSingleUseAndSignedLinksByNamePathAndValue() throws {
+        let signed = "eyJhbGciOiJIUzI1NiJ9" + ".e30." + "c2lnbmF0dXJl"
+        let random = "Q7vX2mLp9" + "Rk4Tz8Wn3" + "Yb6Hc1Jd5"
+        for value in ["https://example.com/reset_token?reset_token=AAAA", "https://example.com/?reset_token=AAAA", "https://example.com/?magic_link=AAAA",
+                      "https://example.com/?ticket=AAAA", "https://example.com/?nonce=AAAA", "https://example.com/?invite=AAAA",
+                      "https://example.com/?login_token=AAAA", "https://example.com/?confirmation_token=AAAA", "https://example.com/?unsubscribe=AAAA",
+                      "https://example.com/?access_token=AAAA", "https://example.com/?code=AAAA", "https://example.com/?password_reset=1",
+                      "https://example.com/?userAuthToken=AAAA", "https://example.com/?inviteCode=AAAA", "https://example.com/?state=AAAA",
+                      "https://example.com/verify/" + signed, "https://example.com/?id=" + signed, "https://example.com/?id=" + random,
+                      "https://example.com/account/reset-password", "https://example.com/email/verify", "https://example.com/unsubscribe",
+                      "https://example.com/magic-link", "https://example.com/users/confirmation", "https://example.com/invitations/accept"] {
+            XCTAssertNil(PublicLinkDestination(try XCTUnwrap(URL(string: value))), value)
+        }
+        for value in ["https://example.com/blog/how-to-reset-your-router", "https://example.com/?q=reset+password", "https://example.com/?author=synthetic",
+                      "https://example.com/?designer=synthetic", "https://example.com/?keywords=search", "https://example.com/watch?v=jNQXAC9IVRw&t=10",
+                      "https://example.com/commit/0123456789abcdef0123456789abcdef01234567", "https://example.com/?page=2&sort=new",
+                      "https://example.com/docs/d/" + random + "/edit"] {
+            XCTAssertNotNil(PublicLinkDestination(try XCTUnwrap(URL(string: value))), value)
+        }
+    }
+
+    /// Page names that act on a visit are recognised by any of their words,
+    /// with or without a file extension or a following number.
+    func testDestinationRefusesSingleUsePageNamesAnywhereInASegment() throws {
+        for value in ["https://example.com/resetpassword.php?id=42", "https://example.com/verify.php?id=42&h=1a2b", "https://example.com/verify-email-address/42",
+                      "https://example.com/confirm-subscription?id=42", "https://www.facebook.com/recover/code/?u=100001234567&n=123456",
+                      "https://example.com/emailVerification", "https://example.com/passwordreset", "https://example.com/activate-account.html",
+                      "https://example.com/magic/sign-in", "https://example.com/invite/team", "https://example.com/unsubscribe.php?u=1",
+                      "https://example.com/?code=AAAA", "https://example.com/?session=keynote"] {
+            XCTAssertNil(PublicLinkDestination(try XCTUnwrap(URL(string: value))), value)
+        }
+        for value in ["https://example.com/blog/how-to-reset-your-router", "https://example.com/products/preset-packs", "https://example.com/docs/confirmation-bias-explained-for-new-readers",
+                      "https://shop.example.org/cart?promo_code=SAVE10", "https://support.example.org/view?ticket_id=123", "https://www.apple.com/macos/",
+                      "https://en.wikipedia.org/wiki/Password"] {
             XCTAssertNotNil(PublicLinkDestination(try XCTUnwrap(URL(string: value))), value)
         }
     }

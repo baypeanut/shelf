@@ -305,7 +305,7 @@ import XCTest
         let store = try LibraryStore(defaults: f.defaults, inbox: f.inbox)
         let text = try XCTUnwrap(store.captureText("synthetic-private-opaque-value"))
         let image = try store.captureImage(f.image(name: "Settings reference.png"))
-        let link = try store.captureLink(URL(string: "https://example.com/synthetic-secret-path?token=synthetic-secret")!)
+        let link = try store.captureLink(URL(string: "https://example.com/synthetic-secret-path?ref=synthetic-secret")!)
         try store.update(link.id) { $0.metadataTitle = "Reference video" }
         let picker = try NameAndPinPicker(store: store, ids: [text.id, image.id, link.id])
         defer { picker.window.close() }

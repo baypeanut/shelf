@@ -25,7 +25,11 @@ jobs:
       - name: Cache search models
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: local/models/MobileCLIP
+          # Downloaded, checksum-pinned inputs only. The compiled models are
+          # rebuilt from them on every run and never restored from a cache.
+          path: |
+            local/models/MobileCLIP
+            !local/models/MobileCLIP/*.mlmodelc
           key: search-models-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-search-models.py') }}
       - name: Lint changed Swift files
         continue-on-error: true
@@ -47,6 +51,8 @@ jobs:
         run: |
           python3 scripts/test-release-version.py
           python3 scripts/check-release-version.py
+      - name: Test bundle and model checks
+        run: python3 scripts/test-bundle-checks.py
       - name: Prepare pinned offline search models
         run: python3 scripts/prepare-search-models.py
       - name: Native XCTest suite
@@ -74,9 +80,12 @@ jobs:
           path: validation/macos/
           if-no-files-found: warn
           retention-days: 14
+      # A pull request's build is checked but never published as an app.
       - name: Archive verified app
+        if: github.event_name != 'pull_request'
         run: ditto -c -k --keepParent build/Shelf.app Shelf.zip
       - name: Preserve app
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Shelf-${{ github.sha }}

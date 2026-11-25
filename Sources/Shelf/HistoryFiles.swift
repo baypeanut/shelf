@@ -51,6 +51,22 @@ struct HistoryFiles {
 
     func isAppCopy(_ url: URL) -> Bool { isClipboardCopy(url) || isFavoriteCopy(url) }
 
+    /// An image or recording saved straight into Shelf's own folder, as macOS
+    /// does for screenshots in Inbox mode. Only the folder decides; a link or a
+    /// file in a subfolder or anywhere else is never one.
+    func isInboxCapture(_ url: URL) -> Bool {
+        let folder = inbox.standardizedFileURL
+        return url.standardizedFileURL.deletingLastPathComponent().path == folder.path
+            && folder.resolvingSymlinksInPath().path == folder.path
+            && extensions.contains(url.pathExtension.lowercased()) && isRegularFile(url)
+    }
+
+    /// Moves a purged item's file to the Trash when Shelf's folder holds it.
+    func trashInboxCapture(_ url: URL) throws -> URL {
+        guard isClipboardCopy(url) || isInboxCapture(url) else { throw Failure.unsafeFile }
+        return try moveToTrash(url)
+    }
+
     /// Markup flattens to PNG even when the original was JPEG/HEIC. Preserve
     /// the recognizable filename while ensuring the extension matches bytes.
     static func exportName(for url: URL, originalPath: String?) -> String {

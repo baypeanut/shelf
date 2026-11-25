@@ -121,6 +121,28 @@ import XCTest
         XCTAssertTrue(FileManager.default.fileExists(atPath: shared.path)); XCTAssertEqual(try library.item(recaptured.id)?.path, shared.path)
     }
 
+    /// Inbox mode saves screenshots into Shelf's folder under the names macOS
+    /// gives them. Purging the item moves that file to the Trash too.
+    func testPurgeMovesInboxScreenshotsAndRecordingsToTrashButNotFilesElsewhere() throws {
+        let f = try fixture(); defer { f.cleanup() }; let library = try store(f)
+        let shot = try f.image(owned: true, name: "Screenshot 2026-11-24 at 10.00.00.png")
+        let favored = try f.image(owned: true, name: "Screenshot 2026-11-24 at 10.00.01.png")
+        let recording = f.inbox.appendingPathComponent("Screen Recording 2026-11-24 at 10.00.02.mov"); try Data([0]).write(to: recording)
+        let outside = try f.image(owned: false), nested = f.inbox.appendingPathComponent("Texts/Screenshot nested.png")
+        try FileManager.default.createDirectory(at: nested.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: shot, to: nested)
+        let linked = f.inbox.appendingPathComponent("Screenshot linked.png"); try FileManager.default.createSymbolicLink(at: linked, withDestinationURL: outside)
+        XCTAssertTrue(library.files.isInboxCapture(shot)); XCTAssertFalse(library.files.isInboxCapture(outside))
+        XCTAssertFalse(library.files.isInboxCapture(nested)); XCTAssertFalse(library.files.isInboxCapture(linked))
+        let items = try [shot, favored, recording, outside].map { try library.captureImage($0) }
+        try library.toggleFavorite([items[1].id]); XCTAssertEqual(try library.item(items[1].id)?.originalPath, favored.path)
+        try library.trash(items.map(\.id))
+        XCTAssertEqual(try library.emptyTrash().count, 4)
+        for gone in [shot, favored, recording] { XCTAssertFalse(FileManager.default.fileExists(atPath: gone.path), gone.lastPathComponent) }
+        for kept in [outside, nested, linked] { XCTAssertTrue(FileManager.default.fileExists(atPath: kept.path), kept.lastPathComponent) }
+        XCTAssertEqual(trashed(f).count, 4)
+    }
+
     func testFileThatCannotMoveToTrashDoesNotBringItsRowBack() throws {
         let f = try fixture(); defer { f.cleanup() }
         let library = try LibraryStore(defaults: f.defaults, inbox: f.inbox, now: { f.date }, moveToTrash: { _ in throw HistoryFiles.Failure.unsafeFile })

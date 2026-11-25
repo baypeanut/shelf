@@ -1,29 +1,54 @@
-# Shelf
+<p align="center">
+  <img src="docs/assets/shelf-icon.png" width="128" height="128" alt="Shelf icon">
+</p>
 
-<img src="docs/assets/shelf-icon.png" width="96" height="96" alt="Shelf icon">
+<h1 align="center">Shelf</h1>
 
-**Clipboard history for macOS, kept on your Mac.**
+<p align="center"><strong>Clipboard history for macOS, kept on your Mac.</strong></p>
 
-Shelf is a menu bar app for the images, text and links you copy. Open a shelf to find something recent, or save it to your Library with pins, folders and tags.
+<p align="center">macOS 14 or later · Nine languages</p>
 
-## What you can do
+Shelf lives in the menu bar and remembers the images, text and links you copy. Press a shortcut to bring your recent copies back, then paste one, drag it into another app or keep it in your Library with pins, folders and tags.
 
-- Browse separate shelves for images, text and links.
-- Search copied text, titles, tags, links and text inside images.
-- Keep useful items with pins, folders and tags.
-- Edit notes and annotate or crop images while preserving the originals.
-- Copy a selection, drag it into another app or export a copy.
-- Restore removed items from Library Trash, which is emptied after 30 days by default or on request.
-- Pause clipboard capture for a while, skip the next copy, or never capture copies from apps you choose.
-- See which app an item was copied from, and filter the Library by it.
-- Use keyboard shortcuts and a searchable Actions menu.
-- Enable optional offline visual search for image content.
+![Shelf showing its image, text and link shelves](docs/screenshots/shelves.png)
 
-Preview windows use the standard macOS close, minimize and zoom buttons at the top left. If an edit cannot be saved, you can retry, discard the edit or keep working.
+## What it does
 
-## Build and run
+**Find anything you copied.** Images, text and links each get their own shelf. Search looks through copied text, page titles, tags, links and the text inside images.
 
-You need **macOS 14 or later**, Xcode with the macOS SDK, and Python 3. The build targets your Mac's architecture. The current release has been tested locally on Apple silicon with Xcode 26.2 and Swift 6.2.3.
+![Searching across all shelves](docs/screenshots/search.png)
+
+**Keep what matters.** Pin items, file them in folders and tag them. Notes can be edited, and images can be cropped or annotated; Shelf always keeps the original.
+
+<p align="center">
+  <img src="docs/screenshots/preview.png" width="640" alt="Annotating an image in the preview window">
+</p>
+
+**Stay in control.**
+
+- Every kind of capture is off until you turn it on.
+- Pause capture for 5 minutes, an hour or until you resume, or skip just the next copy.
+- Never capture copies from apps you choose, such as a password manager.
+- See which app each item came from, and filter by it.
+- Removed items wait in Library Trash for 30 days by default, so a mistake can be undone.
+
+**Work from the keyboard.** Every action has a shortcut, and **Command + K** opens a searchable list of all of them.
+
+| Action | Shortcut |
+| --- | --- |
+| Show shelves | Control + Option + T |
+| Preview the selected item | Space |
+| Copy and return to your previous app | Return |
+| Pin an item | P |
+| File an item in a folder | Shift + P |
+| Undo the last removal | Backspace |
+| Open Actions | Command + K |
+
+Shortcuts can be changed in Settings. Pasting directly into another app needs the macOS Accessibility permission; ordinary copying does not.
+
+## Install
+
+You need **macOS 14 or later**, Xcode with the macOS SDK, and Python 3.
 
 ```sh
 git clone https://github.com/baypeanut/shelf.git
@@ -32,81 +57,59 @@ bash scripts/build-community.sh release
 open build/Shelf.app
 ```
 
-The app is created at `build/Shelf.app`. The builder verifies a separate, isolated startup before finishing. Move the app to your Applications folder to keep it installed.
+The app is built at `build/Shelf.app` and checked with an isolated test launch before the script finishes. Move it to your Applications folder to keep it.
 
-This produces an ad-hoc signed local build. Developer ID signing, notarization and Mac App Store distribution are not configured. There is no in-app updater; updates are installed manually.
-
-### Optional visual search
-
-The default build includes local text recognition. To include offline image-content search as well:
+To add offline visual search, which finds images by what they show, include the search model. The first build downloads pinned model files; search then runs entirely on your Mac.
 
 ```sh
 SHELF_BUNDLE_MODELS=1 bash scripts/build-community.sh release
 ```
 
-The first build downloads pinned model assets. Search runs on your Mac after the assets are bundled. Component details are in [Dependencies](DEPENDENCIES.md).
+> [!NOTE]
+> This is a local build signed only for your Mac. It is not notarized and does not update itself; to update, pull the latest changes and build again.
 
 ## First launch
 
-Open **Settings → Sources** and choose what Shelf should capture. Clipboard image, text and link capture start disabled. Link previews have a separate switch because loading a preview contacts the saved website.
+1. Open **Settings → Sources** and choose what Shelf should capture: images, text, links or any mix. All three start off.
+2. Optionally turn on link previews. They have their own switch, because loading a preview contacts the copied website.
+3. Press **Control + Option + T** to open your shelves.
 
-**Ignored apps** in the same pane lists apps whose copies are never captured. It starts empty. From the menu bar menu you can pause clipboard capture for 5 minutes, 1 hour or until you resume, or skip only the next copy. The menu bar icon is struck through while capture is paused, and a pause that has not run out is still in effect after you reopen Shelf. Screenshots and watched folders are not paused.
-
-Shelf can watch the current macOS screenshot folder while it is running. You can choose additional folders. Inbox mode asks before changing your screenshot destination and restores the saved setting when disabled or on normal quit. Launch at login is optional.
-
-## Keyboard shortcuts
-
-| Action | Default shortcut |
-| --- | --- |
-| Show shelves | Control + Option + T |
-| Navigate | Arrow keys |
-| Preview the selected item | Space |
-| Copy and return to your previous app | Return |
-| Pin an item | P |
-| File an item in a folder | Shift + P |
-| Undo the latest shelf removal | Backspace |
-| Open Actions | Command + K |
-
-Shortcuts can be changed in Settings. Direct paste into another app requires macOS Accessibility permission. Ordinary copy does not.
+Shelf can also collect screenshots. It watches your current screenshot folder, plus any folders you add. **Inbox mode** sends new screenshots straight to Shelf; it asks before changing where macOS saves them, and puts the setting back when you turn it off or quit.
 
 ## Privacy
 
-There is no account, cloud sync, analytics or remote inference service. Your Library stays in `~/Library/Application Support/Shelf/Screenshots/`.
+Shelf has no account, cloud sync, analytics or online services. Your Library stays in `~/Library/Application Support/Shelf/`.
 
-Capture skips supported confidential, concealed, transient and password-manager clipboard markers. Shelf records the name and bundle identifier of the app each copy came from, locally, with the item. Unmarked secrets cannot always be identified. Local history is protected by your macOS account permissions and is not encrypted by Shelf.
+- Copies that password managers and other apps mark as confidential, concealed or transient are skipped.
+- Shelf notes which app each copy came from and keeps that on your Mac.
+- Secrets that are not marked cannot always be recognized, so pause capture or ignore an app when you need to.
+- Your history is protected by your macOS account and is not encrypted by Shelf.
+- Link previews are off by default. When on, the website can see the request and your IP address.
 
-Link previews are off by default. When enabled, the destination website can see the request and your IP address. See [Privacy](PRIVACY.md) and [Security](SECURITY.md) for the complete behavior.
+See [Privacy](PRIVACY.md) and [Security](SECURITY.md) for the full details.
 
 ## Guides
 
-- [Getting started](docs/user-guide.md)
-- [Library organization](docs/library-guide.md)
-- [Previews and editing](docs/preview-guide.md)
-- [Keyboard reference](docs/keyboard-guide.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Building from source](docs/build-guide.md)
-- [Testing changes](docs/testing-guide.md)
+| Using Shelf | Working on Shelf |
+| --- | --- |
+| [Getting started](docs/user-guide.md) | [Building from source](docs/build-guide.md) |
+| [Library](docs/library-guide.md) | [Testing changes](docs/testing-guide.md) |
+| [Previews and editing](docs/preview-guide.md) | [Design notes](docs/design.md) |
+| [Keyboard shortcuts](docs/keyboard-guide.md) | [Contributing](CONTRIBUTING.md) |
+| [Troubleshooting](docs/troubleshooting.md) | [Dependencies](DEPENDENCIES.md) |
 
 ## Development
 
+Shelf is written in Swift with AppKit, SwiftUI, Vision, Core ML and SQLite. App code is in `Sources/Shelf`, tests in `Tests` and build tools in `scripts`.
+
 ```sh
 swift test
-swift scripts/check-strings.swift
-python3 scripts/test-audit-public.py
-python3 scripts/test-release-version.py
-python3 scripts/audit-public.py
-python3 scripts/check-secrets.py
 bash scripts/build-community.sh release
 python3 scripts/verify-bundle.py build/Shelf.app
 ```
 
-To inspect the interface with synthetic content and isolated preferences:
+To look at the interface with sample content and separate preferences, run `bash scripts/build-ui-tests.sh` and open `build/Shelf UI Test.app`. The [testing guide](docs/testing-guide.md) lists every check to run before a change.
 
-```sh
-bash scripts/build-ui-tests.sh
-open "build/Shelf UI Test.app"
-```
+## License
 
-Shelf uses Swift, AppKit, SwiftUI, Vision, Core ML and SQLite. Application code is in `Sources/Shelf`, regression tests are in `Tests`, and build tools are in `scripts`.
-
-Read the [validation report](docs/macos-validation.md), [design notes](docs/design.md), [release checklist](docs/release-readiness.md) and [contribution guide](CONTRIBUTING.md) before making changes. Planned improvements are documented in the [workflow roadmap](docs/functional-review-workflows.md) and [macOS roadmap](docs/functional-review-macos.md).
+Copyright © 2026 baypeanut. All rights reserved. See [LICENSE](LICENSE).

@@ -427,7 +427,7 @@ private struct SettingsView: View {
             }
             Section {
                 Text(L("This build is updated manually."))
-                Link(L("Shelf releases"), destination: AppDelegate.updatesURL)
+                Link(L("How to update Shelf"), destination: AppDelegate.updatesURL)
             }
         }
     }

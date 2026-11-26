@@ -11,8 +11,8 @@ Use the repository's private security reporting channel when available. Otherwis
 - Clipboard capture and link enrichment require explicit opt-in. Known sensitive clipboard markers are excluded; arbitrary unmarked secrets cannot be reliably detected.
 - Managed data uses user-only permissions. File handling rejects unsafe paths/symlinks at the managed-file boundary. Local user permissions do not protect against another process running as the same user.
 - Optional metadata requests use public HTTPS only, validate DNS answers and redirects, bound response sizes, and parse HTML without executing it.
-- Shelf has no in-app updater, update feed or credential helper. It does not check for updates or request GitHub credentials.
-- The builder makes an ad-hoc signed local application. It does not claim Developer ID signing, notarization, sandboxing, or Mac App Store approval. See `docs/release-readiness.md`.
+- Release builds use Sparkle 2.10.1. Both the HTTPS appcast and the archive must pass Ed25519 verification using the key baked into the app. No GitHub credentials or credential helper are required. Background checks do not bring an update window to the foreground; users choose when to install.
+- The builder makes an ad-hoc signed community application with hardened runtime. Update-enabled builds disable library validation so their ad-hoc signed Sparkle framework can load; builds without updates keep library validation enabled. It does not claim Developer ID signing, notarization, sandboxing, or Mac App Store approval. See `docs/release-readiness.md`.
 - Never commit user history, private screenshots, preferences, signing keys, tokens or test evidence containing personal data. The publication audit and pinned secret scanner run locally and in CI.
 
 Never disable Gatekeeper, change Keychain trust or share signing keys as an installation workaround.

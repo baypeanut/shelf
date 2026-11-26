@@ -390,7 +390,6 @@
 "Focus next pane" = "次のペインにフォーカス";
 "Focus previous pane" = "前のペインにフォーカス";
 "Undo Move to Trash" = "ゴミ箱への移動を取り消す";
-"How to update Shelf" = "Shelf のアップデート方法";
 "This build is updated manually." = "This build is updated manually.";
 "Your changes could not be saved." = "Your changes could not be saved.";
 "Try saving again, discard these changes, or keep editing." = "Try saving again, discard these changes, or keep editing.";
@@ -431,3 +430,12 @@
 "Source app" = "コピー元アプリ";
 "Stop ignoring" = "無視をやめる";
 "Until I resume" = "再開するまで";
+
+"Check for updates automatically" = "アップデートを自動的に確認";
+"Shelf checks hourly. You choose when to download and install." = "Shelfは1時間ごとに確認します。ダウンロードとインストールのタイミングは選べます。";
+"Version %@ is available" = "バージョン%@が利用可能です";
+"Check for Updates…" = "アップデートを確認…";
+"Update Shelf…" = "Shelfをアップデート…";
+"Waiting for the current task before restarting." = "現在の処理が完了してから再起動します。";
+"Last update check" = "前回のアップデート確認";
+"View releases" = "リリースを見る";

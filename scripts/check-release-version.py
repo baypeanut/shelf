@@ -22,6 +22,9 @@ def load_release_version(root: Path = ROOT) -> str:
     version = value.get("version") if isinstance(value, dict) else None
     if not isinstance(version, str) or not STABLE_VERSION.fullmatch(version):
         raise ReleaseVersionError("release-version.json version must be a stable major.minor.patch version")
+    build = value.get("build")
+    if not isinstance(build, str) or not re.fullmatch(r"[1-9][0-9]*", build):
+        raise ReleaseVersionError("release-version.json build must be a positive integer string")
     return version
 
 def check_release_version(root: Path = ROOT, *, expected_version: str | None = None, app: Path | None = None) -> str:
@@ -38,6 +41,9 @@ def check_release_version(root: Path = ROOT, *, expected_version: str | None = N
         if info.get("CFBundleShortVersionString") != expected:
             raise ReleaseVersionError("Application version does not match release-version.json")
         build = info.get("CFBundleVersion")
+        expected_build = json.loads((Path(root) / "release-version.json").read_text())["build"]
+        if build != expected_build:
+            raise ReleaseVersionError("Application build does not match release-version.json")
         if not isinstance(build, str) or not re.fullmatch(r"[1-9][0-9]*", build):
             raise ReleaseVersionError("Application build must be a positive integer")
     return expected

@@ -17,6 +17,9 @@ struct ShelfPresentationTiming {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let line: Line
+    let updater = ShelfUpdater()
+    private var allowsUpdates = false
+    private var updateObservation: AnyCancellable?
 #if STANDALONE_TESTS
     @objc var shelfHitGeometryUpdateCountForTesting: Int { line.shelfHitGeometryUpdateCount }
     var statusItemImageForRendering: NSImage? { statusItem?.button?.image }
@@ -31,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let capture: CaptureControl
 
     override init() {
+        allowsUpdates = true
         do { line = Line(library: try LibraryStore(defaults: .standard, inbox: Inbox.folder, preferencesDomain: Bundle.main.bundleIdentifier), pruneOnLoad: false); startupError = nil }
         catch {
             startupError = L("Library could not be opened. Existing history is kept; capture is paused.")
@@ -351,6 +355,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if operationBusy || isPasting || line.library?.hasPendingRecordingWrites == true { return .terminateCancel }
         if !flushPreviewEdits() || libraryController?.flush() == false { preview?.show(); textPreview?.show(); return .terminateCancel }
         return .terminateNow
     }
@@ -941,6 +946,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.autoenablesItems = false
         menu.delegate = self
         statusItem.menu = menu
+        if allowsUpdates {
+            updater.isBusy = { [weak self] in
+                guard let self else { return true }
+                return self.operationBusy || self.isPasting || self.line.library?.hasPendingRecordingWrites == true
+            }
+            updateObservation = updater.$availableVersion.dropFirst().sink { [weak self] _ in
+                DispatchQueue.main.async { self?.updateStatusIcon() }
+            }
+            updater.start()
+        }
     }
 
     /// The icon fills in while copied images or text are hung, so it shows at a
@@ -950,12 +965,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let summary = StatusSummary(line: line)
         // A pause replaces the stack with its struck-through variant, whatever is hung.
         let paused = CaptureMenu.status(capture)
-        let name = paused != nil ? AppIdentity.pausedStatusSymbol : AppIdentity.statusSymbol + (on ? ".fill" : "")
+        let name = updater.availableVersion != nil ? "square.and.arrow.down" : (paused != nil ? AppIdentity.pausedStatusSymbol : AppIdentity.statusSymbol + (on ? ".fill" : ""))
         if let symbol = NSImage(systemSymbolName: name, accessibilityDescription: AppIdentity.name) {
             statusItem?.button?.image = summary.image(symbol: symbol)
         }
-        statusItem?.button?.appearsDisabled = summary.count == 0 && paused == nil
-        let lines = [AppIdentity.name, paused, summary.description].compactMap { $0 }
+        statusItem?.button?.appearsDisabled = summary.count == 0 && paused == nil && updater.availableVersion == nil
+        let lines = [AppIdentity.name, paused, summary.description, updater.availableVersion.map { String(format: L("Version %@ is available"), $0) }].compactMap { $0 }
         statusItem?.button?.toolTip = lines.joined(separator: "\n")
         statusItem?.button?.setAccessibilityLabel(lines.joined(separator: ", "))
     }
@@ -999,6 +1014,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             CaptureMenu.items(capture).forEach(menu.addItem)
         }
         menu.addItem(.separator())
+        if updater.isConfigured {
+            let update = ClosureMenuItem(updater.availableVersion == nil ? L("Check for Updates…") : L("Update Shelf…")) { [weak self] in self?.updater.check() }
+            update.isEnabled = updater.canCheck && !updater.isBusy() && !updater.waitingForWork
+            menu.addItem(update)
+        }
         menu.addItem(ClosureMenuItem(L("Settings…"), key: ",") { [weak self] in self?.showSettings() })
         menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(String(format: L("Quit %@"), AppIdentity.name), key: "q") { NSApp.terminate(nil) })
@@ -1051,6 +1071,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 guard let self, self.flushPreviewEdits(), self.libraryController?.flush() ?? true else { return }
                 do { try LanguagePreferences.reopen() } catch { self.line.notice = L("The app could not reopen. Quit and open it to apply the language.") }
             }
+            model.updater = updater
             settingsController = SettingsWindowController(model: model)
             settingsController?.onBeforeMouseKeyFocus = { [weak self] in self?.capturePasteTarget() }
         }
@@ -1155,9 +1176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     static var updatesURL: URL {
-        // Shelf has no in-app updater and no signed, notarized release yet, so
-        // this opens the instructions for building it from source.
-        URL(string: "https://github.com/baypeanut/shelf/blob/main/docs/build-guide.md")!
+        URL(string: "https://github.com/baypeanut/shelf/releases")!
     }
 
     private func focusLine(preservePasteTarget: Bool = false) {

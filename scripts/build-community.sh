@@ -6,6 +6,7 @@ cd "$ROOT"
 CONFIG="${1:-release}"
 case "$CONFIG" in debug|release) ;; *) echo "Usage: bash scripts/build-community.sh [debug|release]" >&2; exit 2 ;; esac
 case "${SHELF_BUNDLE_MODELS:-0}" in 0|1) ;; *) echo "SHELF_BUNDLE_MODELS must be 0 or 1" >&2; exit 2 ;; esac
+case "${SHELF_UPDATES:-0}" in 0|1) ;; *) echo "SHELF_UPDATES must be 0 or 1" >&2; exit 2 ;; esac
 OUT="$ROOT/.build/packaging"
 APP="$ROOT/build/Shelf.app"
 STAGE="$OUT/Shelf.app"
@@ -23,6 +24,11 @@ PY
 fi
 SWIFT_ARGS=(-Xswiftc -file-prefix-map -Xswiftc "$ROOT=.")
 if [ "$CONFIG" = release ]; then SWIFT_ARGS+=(-Xswiftc -gnone); fi
+if [ "${SHELF_UPDATES:-0}" = 0 ]; then
+  SWIFT_ARGS+=(-Xswiftc -DSHELF_WITHOUT_UPDATES -Xlinker -dead_strip_dylibs)
+else
+  SWIFT_ARGS+=(-Xlinker -rpath -Xlinker @executable_path/../Frameworks)
+fi
 swift build -c "$CONFIG" --product Shelf "${SWIFT_ARGS[@]}"
 BIN="$(swift build -c "$CONFIG" --show-bin-path)"
 rm -rf "$STAGE"
@@ -75,8 +81,21 @@ info = {
 PY
 if [ "${SHELF_BUNDLE_MODELS:-0}" = 1 ]; then bash scripts/bundle-search-models.sh "$STAGE"; fi
 
-# Local ad-hoc signing is deliberately separate from Developer ID / App Store signing.
-codesign --force --sign - --options runtime --timestamp=none "$STAGE"
+# Community updates are authenticated by Sparkle, not Apple Developer ID.
+ENTITLEMENTS=()
+if [ "${SHELF_UPDATES:-0}" = 1 ]; then
+  python3 scripts/configure-updates.py "$STAGE/Contents/Info.plist"
+  SPARKLE="$ROOT/.build/artifacts/sparkle/Sparkle"
+  mkdir -p "$STAGE/Contents/Frameworks"
+  ditto "$SPARKLE/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework" "$STAGE/Contents/Frameworks/Sparkle.framework"
+  cp "$SPARKLE/LICENSE" "$STAGE/Contents/Resources/Sparkle-LICENSE.txt"
+  BASE="$STAGE/Contents/Frameworks/Sparkle.framework/Versions/B"
+  for code in "$BASE/XPCServices/Installer.xpc" "$BASE/XPCServices/Downloader.xpc" "$BASE/Autoupdate" "$BASE/Updater.app" "$STAGE/Contents/Frameworks/Sparkle.framework"; do
+    codesign --force --sign - --options runtime --timestamp=none --preserve-metadata=entitlements "$code"
+  done
+  ENTITLEMENTS=(--entitlements "$ROOT/packaging/Updater.entitlements")
+fi
+codesign --force --sign - --options runtime --timestamp=none "${ENTITLEMENTS[@]}" "$STAGE"
 codesign --verify --deep --strict "$STAGE"
 if [ -d "$APP" ]; then rm -rf "$APP"; fi
 ditto "$STAGE" "$APP"

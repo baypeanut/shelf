@@ -21,6 +21,14 @@ bash scripts/build-community.sh release
 
 The script builds the executable, resources, translations, icon and privacy manifest, then signs and verifies the resulting `build/Shelf.app`. It performs an isolated startup check and leaves the app ready to open.
 
+## Enable the public update channel
+
+```sh
+SHELF_UPDATES=1 SHELF_BUNDLE_MODELS=1 bash scripts/build-community.sh release
+```
+
+This embeds the pinned Sparkle framework and Shelf's public update trust. The private signing key is required only to publish new updates, never to build or use the app. Ordinary source builds keep updates disabled. See [Publishing releases](releases.md).
+
 ## Use a debug build
 
 ```sh

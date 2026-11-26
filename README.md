@@ -48,6 +48,16 @@ Shortcuts can be changed in Settings. Pasting directly into another app needs th
 
 ## Install
 
+Download **[Shelf-macOS-arm64.zip](https://github.com/baypeanut/shelf/releases/latest/download/Shelf-macOS-arm64.zip)**, unzip it, and move **Shelf.app** to Applications. Releases require Apple silicon and macOS 14 or later, and include offline visual search.
+
+This community build is not Apple-notarized. macOS may block its first launch. After trying to open it, use **System Settings → Privacy & Security → Open Anyway** if you trust the download.
+
+Shelf checks for new versions while running without taking focus from other apps. Choose **Check for Updates…** from the menu bar or **Settings → About**. You decide when to download and install. Active work finishes and edits must be saved before a restart. Your Library and capture preferences stay in place. No GitHub account is needed.
+
+Older source builds without updates need this one-time manual installation.
+
+### Build from source
+
 You need **macOS 14 or later**, Xcode with the macOS SDK, and Python 3.
 
 ```sh
@@ -78,7 +88,7 @@ Shelf can also collect screenshots. It watches your current screenshot folder, p
 
 ## Privacy
 
-Shelf has no account, cloud sync, analytics or online services. Your Library stays in `~/Library/Application Support/Shelf/`.
+Shelf has no account, cloud sync or analytics. Release builds contact GitHub for update checks and downloads; you can turn automatic checks off in Settings. Your Library stays in `~/Library/Application Support/Shelf/`.
 
 - Copies that password managers and other apps mark as confidential, concealed or transient are skipped.
 - Shelf notes which app each copy came from and keeps that on your Mac.
@@ -97,6 +107,7 @@ See [Privacy](PRIVACY.md) and [Security](SECURITY.md) for the full details.
 | [Previews and editing](docs/preview-guide.md) | [Design notes](docs/design.md) |
 | [Keyboard shortcuts](docs/keyboard-guide.md) | [Contributing](CONTRIBUTING.md) |
 | [Troubleshooting](docs/troubleshooting.md) | [Dependencies](DEPENDENCIES.md) |
+| | [Publishing releases](docs/releases.md) |
 
 ## Development
 

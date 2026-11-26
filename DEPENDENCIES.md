@@ -1,6 +1,10 @@
 # Dependencies
 
-Shelf builds with system frameworks: AppKit, SwiftUI, Vision, Core ML, Core Graphics, AVFoundation and SQLite. The default build does not download model weights or bundle a third-party updater.
+Shelf uses system frameworks: AppKit, SwiftUI, Vision, Core ML, Core Graphics, AVFoundation and SQLite. The default source build does not download model weights or embed the updater. SwiftPM resolves the pinned Sparkle dependency.
+
+## Updates
+
+Release builds embed [Sparkle 2.10.1](https://github.com/sparkle-project/Sparkle), pinned exactly in Package.swift and Package.resolved. Its component notice is included as `Sparkle-LICENSE.txt` in the app. Sparkle verifies signed update feeds and archives and handles installation and relaunch. Updates use a Shelf-specific Ed25519 key, separate from any other application.
 
 ## Optional visual search
 

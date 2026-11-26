@@ -530,7 +530,7 @@ enum ActionBarMenuAction: String, CaseIterable {
         case .toggleLine: return (L("Show line"), app, "rectangle.3.group", ["show", "hide", "shelf", "line", "göster", "gizle", "askı"])
         case .copyLatestImage: return (L("Copy latest image"), app, "doc.on.doc", ["copy", "latest", "image", "kopyala", "son", "görsel"])
         case .openScreenshotsFolder: return (L("Open screenshots folder"), app, "folder", ["screenshots", "folder", "open", "ekran görüntüsü", "klasör", "aç"])
-        case .releases: return (L("How to update Shelf"), app, "arrow.up.right.square", ["update", "release", "version", "güncelle", "sürüm"])
+        case .releases: return (L("View releases"), app, "arrow.up.right.square", ["update", "release", "version", "güncelle", "sürüm"])
         case .quit: return (String(format: L("Quit %@"), AppIdentity.name), app, "power", ["quit", "exit", "app", "çık", "kapat", "uygulama"])
         }
     }

@@ -390,7 +390,6 @@
 "Focus next pane" = "Növbəti bölməyə fokuslan";
 "Focus previous pane" = "Əvvəlki bölməyə fokuslan";
 "Undo Move to Trash" = "Zibil qutusuna köçürməni geri al";
-"How to update Shelf" = "Shelf Necə Yenilənir";
 "This build is updated manually." = "This build is updated manually.";
 "Your changes could not be saved." = "Your changes could not be saved.";
 "Try saving again, discard these changes, or keep editing." = "Try saving again, discard these changes, or keep editing.";
@@ -431,3 +430,12 @@
 "Source app" = "Mənbə tətbiq";
 "Stop ignoring" = "Nəzərə almamağı dayandır";
 "Until I resume" = "Mən davam etdirənədək";
+
+"Check for updates automatically" = "Yeniləmələri avtomatik yoxla";
+"Shelf checks hourly. You choose when to download and install." = "Shelf hər saat yoxlayır. Nə vaxt endirib quraşdıracağınıza siz qərar verirsiniz.";
+"Version %@ is available" = "%@ versiyası mövcuddur";
+"Check for Updates…" = "Yeniləmələri yoxla…";
+"Update Shelf…" = "Shelf-i yenilə…";
+"Waiting for the current task before restarting." = "Yenidən başlamazdan əvvəl cari tapşırığın bitməsi gözlənilir.";
+"Last update check" = "Son yeniləmə yoxlaması";
+"View releases" = "Versiyalara bax";

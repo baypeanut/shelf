@@ -19,6 +19,7 @@ enum AppIdentity {
 final class SettingsModel: ObservableObject {
     let line: Line
     let allowsSystemChanges: Bool
+    var updater = ShelfUpdater()
     @Published var section: SettingsSection = .general
     @Published var shortcutWarning: String?
     var onCommands: () -> Void = {}
@@ -426,8 +427,7 @@ private struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
             Section {
-                Text(L("This build is updated manually."))
-                Link(L("How to update Shelf"), destination: AppDelegate.updatesURL)
+                ShelfUpdateSettings(updater: model.updater)
             }
         }
     }

@@ -19,7 +19,7 @@ class ReleaseVersionTests(unittest.TestCase):
     def tearDown(self):
         self.temporary.cleanup()
     def version(self, value):
-        (self.root / 'release-version.json').write_text(json.dumps({'version': value}))
+        (self.root / 'release-version.json').write_text(json.dumps({'version': value, 'build': '1'}))
     def bundle(self, **overrides):
         app = self.root / 'Shelf.app'
         (app / 'Contents').mkdir(parents=True, exist_ok=True)
@@ -37,7 +37,7 @@ class ReleaseVersionTests(unittest.TestCase):
     def test_selected_version_drift_rejected(self):
         with self.assertRaises(guard.ReleaseVersionError): guard.check_release_version(self.root, expected_version='2.0.0')
     def test_wrong_identity_and_version_rejected(self):
-        for change in [{'CFBundleIdentifier': 'com.example.Other'}, {'CFBundleShortVersionString': '2.0.0'}, {'CFBundleVersion': '0'}]:
+        for change in [{'CFBundleIdentifier': 'com.example.Other'}, {'CFBundleShortVersionString': '2.0.0'}, {'CFBundleVersion': '0'}, {'CFBundleVersion': '2'}]:
             with self.subTest(change=change):
                 with self.assertRaises(guard.ReleaseVersionError): guard.check_release_version(self.root, app=self.bundle(**change))
     def test_malformed_json_and_missing_bundle_rejected(self):

@@ -390,7 +390,6 @@
 "Focus next pane" = "다음 패널로 포커스 이동";
 "Focus previous pane" = "이전 패널로 포커스 이동";
 "Undo Move to Trash" = "휴지통으로 이동 실행 취소";
-"How to update Shelf" = "Shelf 업데이트 방법";
 "This build is updated manually." = "This build is updated manually.";
 "Your changes could not be saved." = "Your changes could not be saved.";
 "Try saving again, discard these changes, or keep editing." = "Try saving again, discard these changes, or keep editing.";
@@ -431,3 +430,12 @@
 "Source app" = "출처 앱";
 "Stop ignoring" = "무시 중단";
 "Until I resume" = "다시 시작할 때까지";
+
+"Check for updates automatically" = "자동으로 업데이트 확인";
+"Shelf checks hourly. You choose when to download and install." = "Shelf는 매시간 확인합니다. 다운로드 및 설치 시점은 직접 선택합니다.";
+"Version %@ is available" = "버전 %@ 사용 가능";
+"Check for Updates…" = "업데이트 확인…";
+"Update Shelf…" = "Shelf 업데이트…";
+"Waiting for the current task before restarting." = "다시 시작하기 전에 현재 작업이 끝나기를 기다리는 중입니다.";
+"Last update check" = "최근 업데이트 확인";
+"View releases" = "릴리스 보기";

@@ -8,6 +8,8 @@ import plistlib
 import re
 import subprocess
 import sys
+import tempfile
+import shutil
 
 root = Path(__file__).resolve().parents[1]
 MODEL_REVISION = '3e0a7bfb9fe83da8a3efaa3fd8f7df24214bb947'
@@ -66,21 +68,70 @@ def check_models(models):
 
 
 def check_signature(app):
+    info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
+    updates = bool(info.get("SUPublicEDKey"))
+    framework = app / "Contents/Frameworks/Sparkle.framework"
     details = subprocess.run(['codesign', '-d', '--verbose=2', str(app)], capture_output=True, text=True, check=True).stderr
     flags = re.search(r'^CodeDirectory .*\bflags=0x[0-9a-f]+\(([^)]*)\)', details, re.M)
     if not flags or 'runtime' not in flags.group(1).split(','):
         raise SystemExit('The app is not signed with the hardened runtime')
     entitlements = subprocess.run(['codesign', '-d', '--entitlements', '-', '--xml', str(app)], capture_output=True, check=True).stdout
-    if entitlements.strip() and plistlib.loads(entitlements):
-        raise SystemExit('The app must not carry entitlements')
+    actual = plistlib.loads(entitlements) if entitlements.strip() else {}
+    expected = {'com.apple.security.cs.disable-library-validation': True} if updates else {}
+    if actual != expected:
+        raise SystemExit('Unexpected application entitlements')
+    if updates:
+        if not framework.is_dir() or sorted(p.name for p in framework.parent.iterdir()) != ['Sparkle.framework']:
+            raise SystemExit('Only the updater framework may be embedded')
+        source = root / '.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework'
+        if not source.is_dir():
+            raise SystemExit('Resolve the pinned updater before auditing its contents')
+        # Re-signing changes Mach-O signatures. Every resource and helper path
+        # must still be from the pinned framework; binaries are verified below.
+        def entries(folder):
+            return {p.relative_to(folder).as_posix(): p for p in folder.rglob('*')
+                    if '_CodeSignature' not in p.parts}
+        shipped, pinned = entries(framework), entries(source)
+        if shipped.keys() != pinned.keys():
+            raise SystemExit('Updater framework contains missing or unexpected files')
+        for name, path in shipped.items():
+            original = pinned[name]
+            if path.is_symlink() != original.is_symlink() or path.is_dir() != original.is_dir():
+                raise SystemExit('Updater framework structure differs from pinned input')
+            if path.is_symlink():
+                if os.readlink(path) != os.readlink(original) or not path.resolve().is_relative_to(framework.resolve()):
+                    raise SystemExit('Unsafe updater framework link')
+            elif path.is_file():
+                with path.open('rb') as stream: magic = stream.read(4)
+                if magic in MACH_O:
+                    # Ignore only the code-signature bytes changed by our build.
+                    # A locally modified, re-signed helper must not pass the audit.
+                    with tempfile.TemporaryDirectory(prefix='shelf-updater-audit-') as temporary:
+                        copies = [Path(temporary)/name for name in ('shipped', 'pinned')]
+                        for candidate, copy in zip((path, original), copies):
+                            shutil.copy2(candidate, copy)
+                            subprocess.run(['codesign', '--force', '--sign', '-', '--options', 'runtime', '--timestamp=none',
+                                            '--preserve-metadata=identifier,entitlements', str(copy)], check=True, capture_output=True)
+                        if sha256(copies[0]) != sha256(copies[1]):
+                            raise SystemExit('Updater executable differs from pinned input')
+                elif sha256(path) != sha256(original):
+                    raise SystemExit('Updater resource differs from pinned input')
+        base = framework / 'Versions/B'
+        for code in [framework, base/'Autoupdate', base/'Updater.app', base/'XPCServices/Installer.xpc', base/'XPCServices/Downloader.xpc']:
+            subprocess.run(['codesign', '--verify', '--strict', str(code)], check=True, capture_output=True)
+            details = subprocess.run(['codesign', '-d', '--verbose=2', str(code)], check=True, capture_output=True, text=True).stderr
+            if 'runtime' not in details:
+                raise SystemExit('Updater helper lacks hardened runtime')
     contents = app / 'Contents'
     for name in NESTED_CODE:
+        if name == 'Frameworks' and updates: continue
         if os.path.lexists(contents / name):
             raise SystemExit(f'Nested code is not expected: Contents/{name}')
     executables = sorted(path.name for path in (contents / 'MacOS').iterdir())
     if executables != ['Shelf']:
         raise SystemExit('Contents/MacOS must hold only the Shelf executable')
     for directory, folders, names in os.walk(contents):
+        if updates and Path(directory) == contents: folders[:] = [name for name in folders if name != "Frameworks"]
         for name in folders + names:
             path = Path(directory) / name
             if path.is_symlink():
@@ -104,13 +155,21 @@ def main():
     for key, value in expected.items():
         if info.get(key) != value:
             raise SystemExit(f'Unexpected bundle value: {key}')
-    # Shelf has no in-app updater, so no update feed, key or preference belongs here.
-    if any(key.startswith('SU') or key.endswith('UpdateRepository') for key in info):
-        raise SystemExit('Update settings must not be packaged')
+    updates = bool(info.get('SUPublicEDKey'))
+    if updates:
+        config = plistlib.loads((root/'packaging/Updates.plist').read_bytes())
+        expected_updates = {'SUFeedURL': config['FeedURL'], 'SUPublicEDKey': config['PublicEDKey'],
+                            'SURequireSignedFeed': True, 'SUVerifyUpdateBeforeExtraction': True,
+                            'SUEnableAutomaticChecks': True, 'SUEnableSystemProfiling': False,
+                            'SUAutomaticallyUpdate': False, 'SUAllowsAutomaticUpdates': False}
+        if any(info.get(key) != value for key, value in expected_updates.items()):
+            raise SystemExit('Update trust or automatic-check settings differ from the public channel')
+    elif any(key.startswith('SU') or key.endswith('UpdateRepository') for key in info):
+        raise SystemExit('A build without updates must not retain update trust')
     resources = app / 'Contents/Resources'
     for filename in ('Shelf.icns', 'DEPENDENCIES.md',
                      'PRIVACY.md', 'SECURITY.md', 'PrivacyInfo.xcprivacy', 'en.lproj/Localizable.strings',
-                     'tr.lproj/Localizable.strings'):
+                     'tr.lproj/Localizable.strings') + (('Sparkle-LICENSE.txt',) if updates else ()):
         if not (resources / filename).is_file():
             raise SystemExit(f'Missing bundle resource: {filename}')
     manifest = plistlib.loads((resources / 'PrivacyInfo.xcprivacy').read_bytes())
@@ -123,8 +182,8 @@ def main():
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
     check_signature(app)
     linked = subprocess.check_output(['otool', '-L', str(executable)], text=True)
-    if 'Sparkle.framework/' in linked or (app / 'Contents/Frameworks/Sparkle.framework').exists():
-        raise SystemExit('An updater framework must not be packaged')
+    if ('Sparkle.framework/' in linked) != updates or (app / 'Contents/Frameworks/Sparkle.framework').exists() != updates:
+        raise SystemExit('Updater linkage must match the bundled update trust')
     if any('/Users/' in dependency for dependency in linked.splitlines()[1:]):
         raise SystemExit('Executable depends on a personal build path')
     commands = subprocess.check_output(['otool', '-l', str(executable)], text=True)

@@ -390,7 +390,6 @@
 "Focus next pane" = "聚焦下一个面板";
 "Focus previous pane" = "聚焦上一个面板";
 "Undo Move to Trash" = "撤销移到废纸篓";
-"How to update Shelf" = "如何更新 Shelf";
 "This build is updated manually." = "This build is updated manually.";
 "Your changes could not be saved." = "Your changes could not be saved.";
 "Try saving again, discard these changes, or keep editing." = "Try saving again, discard these changes, or keep editing.";
@@ -431,3 +430,12 @@
 "Source app" = "来源 App";
 "Stop ignoring" = "停止忽略";
 "Until I resume" = "直到我恢复";
+
+"Check for updates automatically" = "自动检查更新";
+"Shelf checks hourly. You choose when to download and install." = "Shelf 每小时检查一次。下载和安装时间由你决定。";
+"Version %@ is available" = "版本 %@ 可用";
+"Check for Updates…" = "检查更新…";
+"Update Shelf…" = "更新 Shelf…";
+"Waiting for the current task before restarting." = "正在等待当前任务完成后重新启动。";
+"Last update check" = "上次检查更新";
+"View releases" = "查看发行版本";

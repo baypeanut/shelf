@@ -1,6 +1,6 @@
 # Release readiness
 
-Shelf is available as source for a native macOS application. The build targets macOS 14 or later and the architecture of the building Mac.
+Shelf is available as source and as an Apple silicon community release for macOS 14 or later. Source builds target the architecture of the building Mac.
 
 ## Package
 
@@ -10,15 +10,15 @@ Shelf is available as source for a native macOS application. The build targets m
 - Data directory: `~/Library/Application Support/Shelf/Screenshots/`.
 - Included resources: icon, localization, privacy manifest, privacy/security documents and dependency information.
 - Optional visual-search builds include pinned model assets and their component notices.
-- There is no in-app updater. Shelf does not check for, download or install updates, and no updater framework, update feed or credential helper is bundled. Settings → About shows the installed version and links to the build guide.
+- Release builds include the pinned Sparkle framework and its notice. The menu bar and Settings > About offer signed updates without a GitHub account. Source builds opt in with `SHELF_UPDATES=1`.
 
 The local builder uses ad-hoc signing with hardened runtime. Strict signature verification and an actual isolated AppKit launch are part of the build gate. Neither establishes notarization, Developer ID signing or Mac App Store approval.
 
 ## Distribution work
 
-A direct-download release needs Developer ID signing, notarization, stapling and clean-machine Gatekeeper testing. App Store submission needs an App Sandbox implementation, entitlement and security-scoped folder review, screenshot-integration and direct-paste review, distribution provisioning, an Xcode archive and privacy declarations.
+The current direct download is ad-hoc signed. Developer ID signing, notarization, stapling and clean-machine Gatekeeper testing remain future distribution work. App Store submission needs an App Sandbox implementation, entitlement and security-scoped folder review, screenshot-integration and direct-paste review, distribution provisioning, an Xcode archive and privacy declarations.
 
-An in-app updater would be separate work on top of a direct-download release: Developer ID signing and notarization for every build, Sparkle 2 added as a dependency with its component notice, and an EdDSA-signed appcast whose public key is compiled into the app. `PRIVACY.md`, `SECURITY.md` and the bundle verifier would need to change with it. None of this exists today.
+Stable version tags trigger tests, bundle checks, signing and publication. The update feed and archive are Ed25519-signed; all assets are uploaded to a draft before publication. Real isolated installation/relaunch and modified-feed/archive rejection are tested in CI. Apple Developer membership is not required for this community update channel. See [Publishing releases](releases.md).
 
 The privacy manifest must be checked against the final API usage and enabled features. A manifest alone does not establish qualification.
 

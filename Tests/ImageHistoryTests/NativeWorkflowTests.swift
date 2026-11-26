@@ -120,6 +120,6 @@ import XCTest
         XCTAssertFalse(Shortcut(keyCode: 200, modifiers: .command, key: "a").isUsable)
         XCTAssertFalse(Shortcut(keyCode: 0, modifiers: .shift, key: "a").isUsable)
         XCTAssertFalse(Shortcut(keyCode: 0, modifiers: [.command, .capsLock], key: "a").isUsable)
-        XCTAssertEqual(AppDelegate.updatesURL.absoluteString, "https://github.com/baypeanut/shelf/blob/main/docs/build-guide.md")
+        XCTAssertEqual(AppDelegate.updatesURL.absoluteString, "https://github.com/baypeanut/shelf/releases")
     }
 }

@@ -4,10 +4,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: macos-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   native-tests-and-build:
@@ -49,6 +50,7 @@ jobs:
           exit "$status"
       - name: Validate release version
         run: |
+          python3 scripts/test-release-tags.py
           python3 scripts/test-release-version.py
           python3 scripts/check-release-version.py
       - name: Test bundle and model checks
@@ -60,6 +62,8 @@ jobs:
         env:
           SHELF_BEHAVIOR_REPORT: validation/macos/shelves.json
           SHELF_KEYBOARD_REPORT: validation/macos/keyboard.json
+      - name: Real update installation and tamper rejection
+        run: python3 scripts/test-update-install.py
       - name: Validate localization
         run: swift scripts/check-strings.swift
       - name: Build Shelf with offline visual search

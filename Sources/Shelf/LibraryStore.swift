@@ -256,6 +256,7 @@ extension String {
     }
     private var recordingTrims = [UUID: RecordingTrimContext]()
     private var recordingTrimPending = Set<String>()
+    var hasPendingRecordingWrites: Bool { !recordingTrimPending.isEmpty }
     var canUndoShelfRemoval: Bool { !shelfRemovalUndo.isEmpty }
     var canUndoTrash: Bool { !trashRemovalUndo.isEmpty }
     private let readerQueue = DispatchQueue(label: "com.baypeanut.Shelf.library.reader", qos: .userInitiated)

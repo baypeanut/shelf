@@ -390,7 +390,6 @@
 "Focus next pane" = "Sonraki Bölmeye Odaklan";
 "Focus previous pane" = "Önceki Bölmeye Odaklan";
 "Undo Move to Trash" = "Çöp Sepeti’ne Taşımayı Geri Al";
-"How to update Shelf" = "Shelf Nasıl Güncellenir";
 "This build is updated manually." = "Bu derleme elle güncellenir.";
 "Your changes could not be saved." = "Değişiklikleriniz kaydedilemedi.";
 "Try saving again, discard these changes, or keep editing." = "Yeniden kaydetmeyi deneyin, bu değişiklikleri bırakın veya düzenlemeye devam edin.";
@@ -431,3 +430,12 @@
 "Source app" = "Kaynak uygulama";
 "Stop ignoring" = "Yok Saymayı Bırak";
 "Until I resume" = "Ben Sürdürene Kadar";
+
+"Check for updates automatically" = "Güncellemeleri otomatik denetle";
+"Shelf checks hourly. You choose when to download and install." = "Shelf saatte bir denetler. Ne zaman indirip kuracağınıza siz karar verirsiniz.";
+"Version %@ is available" = "%@ sürümü kullanılabilir";
+"Check for Updates…" = "Güncellemeleri Denetle…";
+"Update Shelf…" = "Shelf’i Güncelle…";
+"Waiting for the current task before restarting." = "Yeniden başlatmadan önce mevcut görevin bitmesi bekleniyor.";
+"Last update check" = "Son güncelleme denetimi";
+"View releases" = "Sürümleri görüntüle";

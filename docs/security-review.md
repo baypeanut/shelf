@@ -18,7 +18,7 @@ The review covers clipboard admission, local persistence, file handling, optiona
 
 Link previews are a separate opt-in. Requests use public HTTPS destinations, validate DNS answers and redirects, reject credential-bearing URLs and private/reserved addresses, and bound response sizes and timeouts. HTML is parsed as data without running scripts. No browser session, cookies or authorization headers are reused.
 
-Shelf has no in-app updater: no update feed, credential helper, updater framework or update traffic. The bundle verifier rejects packaged update settings and an updater framework. A future updater needs Developer ID signing, notarization and Sparkle 2 with an EdDSA-signed appcast.
+Update-enabled community builds embed pinned Sparkle 2.10.1 and verify both the appcast and archive with Shelf's own Ed25519 key. The public HTTPS feed requires no token. The bundle verifier permits only the expected updater framework and compares its resources and normalized executable bytes with the pinned input. Other nested code remains forbidden. Local builds without updates retain full library validation. Community releases are ad-hoc signed and are not Apple-notarized; first-launch Gatekeeper warnings remain a distribution limit.
 
 ## Known boundaries
 

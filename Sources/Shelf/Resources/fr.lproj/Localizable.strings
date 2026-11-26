@@ -390,7 +390,6 @@
 "Focus next pane" = "Activer le volet suivant";
 "Focus previous pane" = "Activer le volet précédent";
 "Undo Move to Trash" = "Annuler le déplacement vers la corbeille";
-"How to update Shelf" = "Mettre à jour Shelf";
 "This build is updated manually." = "This build is updated manually.";
 "Your changes could not be saved." = "Your changes could not be saved.";
 "Try saving again, discard these changes, or keep editing." = "Try saving again, discard these changes, or keep editing.";
@@ -431,3 +430,12 @@
 "Source app" = "App source";
 "Stop ignoring" = "Ne plus ignorer";
 "Until I resume" = "Jusqu’à ce que je reprenne";
+
+"Check for updates automatically" = "Rechercher automatiquement les mises à jour";
+"Shelf checks hourly. You choose when to download and install." = "Shelf vérifie chaque heure. Vous choisissez quand télécharger et installer.";
+"Version %@ is available" = "La version %@ est disponible";
+"Check for Updates…" = "Rechercher des mises à jour…";
+"Update Shelf…" = "Mettre à jour Shelf…";
+"Waiting for the current task before restarting." = "En attente de la fin de la tâche avant de redémarrer.";
+"Last update check" = "Dernière recherche de mise à jour";
+"View releases" = "Voir les versions";

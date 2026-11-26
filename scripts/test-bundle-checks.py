@@ -182,4 +182,23 @@ class SignatureTests(unittest.TestCase):
         self.sign('--options', 'runtime')
         verify.check_signature(self.app)
 
+class UpdaterPayloadTests(unittest.TestCase):
+    def binary(self, signature_size=32, payload=b'original code!!!'):
+        import struct
+        header = struct.pack('<8I', 0xfeedfacf, 0x100000c, 0, 2, 2, 88, 0, 0)
+        offset = 120 + len(payload)
+        segment = struct.pack('<II16sQQQQIIII', 0x19, 72, b'__LINKEDIT', 0,
+                              offset + signature_size, 120, len(payload) + signature_size, 1, 1, 0, 0)
+        signature = struct.pack('<IIII', 0x1d, 16, offset, signature_size)
+        return header + segment + signature + payload + bytes(signature_size)
+
+    def test_only_signing_tail_and_its_sizes_may_change(self):
+        digest = verify._payload_module.payloads
+        self.assertEqual(digest(self.binary(32)), digest(self.binary(256)))
+        self.assertNotEqual(digest(self.binary()), digest(self.binary(payload=b'altered code!!!!')))
+
+    def test_unsigned_or_trailing_content_is_rejected(self):
+        for content in (self.binary() + b'extra', self.binary()[:-1], b'not executable'):
+            with self.assertRaises(ValueError): verify._payload_module.payloads(content)
+
 if __name__ == '__main__': unittest.main()

@@ -8,8 +8,11 @@ import plistlib
 import re
 import subprocess
 import sys
-import tempfile
-import shutil
+import importlib.util
+
+_payload_spec = importlib.util.spec_from_file_location("macho_payload", Path(__file__).with_name("macho-payload.py"))
+_payload_module = importlib.util.module_from_spec(_payload_spec)
+_payload_spec.loader.exec_module(_payload_module)
 
 root = Path(__file__).resolve().parents[1]
 MODEL_REVISION = '3e0a7bfb9fe83da8a3efaa3fd8f7df24214bb947'
@@ -106,14 +109,14 @@ def check_signature(app):
                 if magic in MACH_O:
                     # Ignore only the code-signature bytes changed by our build.
                     # A locally modified, re-signed helper must not pass the audit.
-                    with tempfile.TemporaryDirectory(prefix='shelf-updater-audit-') as temporary:
-                        copies = [Path(temporary)/name for name in ('shipped', 'pinned')]
-                        for candidate, copy in zip((path, original), copies):
-                            shutil.copy2(candidate, copy)
-                            subprocess.run(['codesign', '--force', '--sign', '-', '--options', 'runtime', '--timestamp=none',
-                                            '--preserve-metadata=identifier,entitlements', str(copy)], check=True, capture_output=True)
-                        if sha256(copies[0]) != sha256(copies[1]):
-                            raise SystemExit('Updater executable differs from pinned input')
+                    if _payload_module.payloads(path.read_bytes()) != _payload_module.payloads(original.read_bytes()):
+                        raise SystemExit('Updater executable differs from pinned input: ' + name)
+                    def code_entitlements(binary):
+                        result = subprocess.run(['codesign', '-d', '--entitlements', '-', '--xml', str(binary)],
+                                                check=True, capture_output=True).stdout
+                        return plistlib.loads(result) if result.strip() else {}
+                    if code_entitlements(path) != code_entitlements(original):
+                        raise SystemExit('Updater entitlements differ from pinned input: ' + name)
                 elif sha256(path) != sha256(original):
                     raise SystemExit('Updater resource differs from pinned input')
         base = framework / 'Versions/B'

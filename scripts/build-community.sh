@@ -82,7 +82,7 @@ PY
 if [ "${SHELF_BUNDLE_MODELS:-0}" = 1 ]; then bash scripts/bundle-search-models.sh "$STAGE"; fi
 
 # Community updates are authenticated by Sparkle, not Apple Developer ID.
-ENTITLEMENTS=()
+SIGNING_ARGS=(--force --sign - --options runtime --timestamp=none)
 if [ "${SHELF_UPDATES:-0}" = 1 ]; then
   python3 scripts/configure-updates.py "$STAGE/Contents/Info.plist"
   SPARKLE="$ROOT/.build/artifacts/sparkle/Sparkle"
@@ -93,9 +93,9 @@ if [ "${SHELF_UPDATES:-0}" = 1 ]; then
   for code in "$BASE/XPCServices/Installer.xpc" "$BASE/XPCServices/Downloader.xpc" "$BASE/Autoupdate" "$BASE/Updater.app" "$STAGE/Contents/Frameworks/Sparkle.framework"; do
     codesign --force --sign - --options runtime --timestamp=none --preserve-metadata=entitlements "$code"
   done
-  ENTITLEMENTS=(--entitlements "$ROOT/packaging/Updater.entitlements")
+  SIGNING_ARGS+=(--entitlements "$ROOT/packaging/Updater.entitlements")
 fi
-codesign --force --sign - --options runtime --timestamp=none "${ENTITLEMENTS[@]}" "$STAGE"
+codesign "${SIGNING_ARGS[@]}" "$STAGE"
 codesign --verify --deep --strict "$STAGE"
 if [ -d "$APP" ]; then rm -rf "$APP"; fi
 ditto "$STAGE" "$APP"
